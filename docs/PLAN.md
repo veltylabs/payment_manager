@@ -10,7 +10,7 @@ REVIEWER: none
 > **Pieza P** de
 > [`mjosefa-cms/docs/RESERVA_Y_PAGOS_MASTER_PLAN.md`](https://github.com/veltylabs/mjosefa-cms/blob/main/docs/RESERVA_Y_PAGOS_MASTER_PLAN.md)
 > (decisiones RP-2 a RP-13). **Requiere** `webtyp.com/dom` con `GetQuery`, `ClearQuery` y
-> `NavigatePost` publicado (pieza A2): subir `go.mod` a esa versión antes de la etapa 8.
+> `NavigatePost`: **`webtyp.com/dom` v0.13.25** (pieza A2, ya publicada); usar esa versión o una posterior.
 > Lee primero [`AGENTS.md`](../AGENTS.md): sus reglas aplican a todo este plan.
 
 # Plan — `payment_manager`: pagos de mesón y online con devoluciones
