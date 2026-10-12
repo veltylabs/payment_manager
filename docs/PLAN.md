@@ -3,6 +3,8 @@ PLAN: "feat: payment_manager v0.1.0 — pagos de mesón y online, devoluciones, 
 TAG: v0.1.0
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 12145558634456377497
 ---
 
 > Este plan se despacha con el flujo CodeJob. Ver skill: agents-workflow.
