@@ -8,7 +8,8 @@ import (
 	"webtyp.com/widget/style"
 )
 
-// RenderCSS es el paso de pago: monto destacado, error visible, cuerpo en columna.
+// RenderCSS es el paso de pago: monto destacado, error visible, cuerpo en
+// columna, el campo con la superficie de formulario y el botón al inicio (fila).
 func (s *PaymentStep) RenderCSS() *css.Stylesheet {
 	return style.For(s).
 		Root(style.Stack(style.Space3)).
@@ -16,6 +17,8 @@ func (s *PaymentStep) RenderCSS() *css.Stylesheet {
 		Part(PartError, style.As(style.DangerWash), style.FontSize(style.TextSm)).
 		Part(PartBody, style.Stack(style.Space3)).
 		Part(PartReceipt, style.Stack(style.Space1)).
+		Part(PartInput, style.As(style.Field), style.Round(style.RadiusMd), style.PadInline(style.Space3), style.ControlBox()).
+		Part(PartActions, style.Row(style.Space2)).
 		Part(PartPay, style.Button(style.Primary)).
 		When(widget.Busy, PartPay, style.As(style.Inactive)).
 		Stylesheet()

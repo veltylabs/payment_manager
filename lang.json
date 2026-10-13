@@ -25,10 +25,6 @@
     "Refunds": ["Devoluciones"],
     "Register payment": ["Registrar pago"],
     "Transfer": ["Transferencia"],
-    "cash": ["efectivo"],
-    "credit": ["crédito"],
-    "debit": ["débito"],
-    "transfer": ["transferencia"],
     "webpay": ["Webpay"]
   }
 }

@@ -23,6 +23,8 @@ const (
 	PartBody    = widget.Part("body")
 	PartReceipt = widget.Part("receipt")
 	PartPay     = widget.Part("pay")
+	PartActions = widget.Part("actions") // fila del botón: alineado al inicio, como el resto del formulario
+	PartInput   = widget.Part("input")
 )
 
 var (
@@ -32,6 +34,8 @@ var (
 	clsStepBody    = NamePaymentStep.Class(PartBody)
 	clsStepReceipt = NamePaymentStep.Class(PartReceipt)
 	clsStepPay     = NamePaymentStep.Class(PartPay)
+	clsStepActions = NamePaymentStep.Class(PartActions)
+	clsStepInput   = NamePaymentStep.Class(PartInput)
 )
 
 // Textos fijos (claves en inglés; su español en lang.json).
@@ -139,11 +143,11 @@ func (s *PaymentStep) methodPicker() *Element {
 func (s *PaymentStep) receiptField() *Element {
 	return Label().Set(clsStepReceipt.AsAttr()).
 		Text(lang.Translate(textReceiptNumber).String()).
-		Child(Input("text").Attr("name", "receipt").Bind(s.receipt))
+		Child(Input("text").Set(clsStepInput.AsAttr()).Attr("name", "receipt").Bind(s.receipt))
 }
 
 func (s *PaymentStep) payButton(label lang.Text, run func()) *Element {
-	return Button().Set(clsStepPay.AsAttr()).
+	btn := Button().Set(clsStepPay.AsAttr()).
 		Attr("type", "button").
 		BindState(widget.Busy, s.busy).
 		Text(lang.Translate(label).String()).
@@ -155,6 +159,7 @@ func (s *PaymentStep) payButton(label lang.Text, run func()) *Element {
 			s.errMsg.Set("")
 			run()
 		})
+	return Div().Set(clsStepActions.AsAttr()).Child(btn)
 }
 
 func (s *PaymentStep) registerCounter() {
