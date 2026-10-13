@@ -2,28 +2,27 @@ package tests
 
 import (
 	"testing"
-	paymentmanager "github.com/veltylabs/payment_manager"
+
+	pm "github.com/veltylabs/payment_manager"
 )
 
 func TestFormatAmount(t *testing.T) {
-	tests := []struct {
+	cases := []struct {
 		amount   int64
 		currency string
-		expected string
+		want     string
 	}{
-		{25000, "CLP", "$25.000"},
-		{1234567, "CLP", "$1.234.567"},
-		{0, "CLP", "$0"},
-		{1250, "USD", "US$12,50"},
-		{100, "EUR", "100 EUR"},
+		{25000, pm.CurrencyCLP, "$25.000"},
+		{1234567, pm.CurrencyCLP, "$1.234.567"},
+		{0, pm.CurrencyCLP, "$0"},
+		{999, pm.CurrencyCLP, "$999"},
+		{1250, pm.CurrencyUSD, "US$12,50"},
+		{5, pm.CurrencyUSD, "US$0,05"},
+		{700, "EUR", "700 EUR"},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.expected, func(t *testing.T) {
-			got := paymentmanager.FormatAmount(tt.amount, tt.currency)
-			if got != tt.expected {
-				t.Errorf("FormatAmount(%d, %q) = %q, want %q", tt.amount, tt.currency, got, tt.expected)
-			}
-		})
+	for _, c := range cases {
+		if got := pm.FormatAmount(c.amount, c.currency); got != c.want {
+			t.Errorf("FormatAmount(%d, %s) = %q, want %q", c.amount, c.currency, got, c.want)
+		}
 	}
 }

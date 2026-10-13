@@ -1,57 +1,51 @@
 package paymentmanager
 
 import (
-	"webtyp.com/router"
-	"webtyp.com/view"
-	"webtyp.com/fmt"
 	"webtyp.com/lang"
 	"webtyp.com/model"
+	"webtyp.com/router"
+	"webtyp.com/view"
 )
 
+// ListWindowSeconds es cuánto hacia atrás muestra la lista de pagos: 30 días.
+const ListWindowSeconds = 30 * 86400
+
+const titlePayments = "Payments"
+
+// Item proyecta un pago como fila: monto y medio; estado y referencia.
 func (p *Payment) Item() view.Item {
-	status := lang.Text("payment_manager_" + p.Status)
 	return view.Item{
 		ID:          p.Id,
-		Label:       FormatAmount(p.Amount, p.Currency) + " (" + p.Method + ")",
-		Description: fmt.Sprintf("%s - %s %s", status, p.ReferenceModule, p.ReferenceId),
+		Label:       FormatAmount(p.Amount, p.Currency) + " · " + lang.Translate(p.Method).String(),
+		Description: lang.Translate(p.Status).String() + " · " + p.ReferenceModule + " " + p.ReferenceId,
 	}
 }
 
-type lister struct {
+// NewView construye el Presenter de solo lectura de los pagos del tenant de
+// los últimos ListWindowSeconds.
+func NewView(caller router.Caller, tenantId string) view.Presenter {
+	return view.New(&paymentLister{caller: caller, tenantId: tenantId}, &Payment{}, view.WithTitle(titlePayments))
+}
+
+type paymentLister struct {
 	caller   router.Caller
-	tenantID string
+	tenantId string
 }
 
-func (l *lister) List(done func([]model.Model, error)) {
-
-	// mock implementation
-	done(nil, nil)
-}
-
-func (l *lister) Actions() []view.Action {
-	return []view.Action{
-		{
-			Op:    OpReconcileOnlinePayments,
-			Label: lang.Text("Reconcile online payments"),
-			Args: func(records []model.Model) model.Encodable {
-				return &ReconcileOnlinePaymentsArgs{TenantId: l.tenantID}
-			},
-		},
-	}
-}
-
-func (l *lister) Run(op string, done func(error)) {
-	// Let crudview or whatever handle it via router, or we do it if requested.
-	// The Actioner interface usually means we dispatch it.
-	if op == OpReconcileOnlinePayments {
-		args := ReconcileOnlinePaymentsArgs{TenantId: l.tenantID}
-		l.caller.Call(op, &args, nil, done)
-	} else {
-		done(fmt.Err("unknown operation"))
-	}
-}
-
-func NewView(caller router.Caller, tenantID string) view.Presenter {
-	// Use view.New with our lister
-	return view.New(&lister{caller: caller, tenantID: tenantID}, &Payment{})
+func (l *paymentLister) List(done func([]model.Model, error)) {
+	now := nowSeconds()
+	out := &PaymentList{}
+	l.caller.Call(ModelName+"."+OpListPayments,
+		&ListPaymentsArgs{TenantId: l.tenantId, From: now - ListWindowSeconds, To: now + 1}, out,
+		func(err error) {
+			if err != nil {
+				done(nil, err)
+				return
+			}
+			rows := make([]model.Model, len(*out))
+			for i, p := range *out {
+				rows[i] = p
+			}
+			done(rows, nil)
+		})
 }

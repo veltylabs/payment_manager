@@ -1,41 +1,21 @@
 package ui
 
 import (
-	. "webtyp.com/dom"
-	. "webtyp.com/html"
+	"webtyp.com/dom"
+
+	paymentmanager "github.com/veltylabs/payment_manager"
 )
 
-type TakeReturn struct {
-	Element
-	OnOnlineReturn func(token string)
-}
-
-func NewTakeReturn(onReturn func(token string)) *TakeReturn {
-	v := &TakeReturn{
-		OnOnlineReturn: onReturn,
+// TakeReturn lee y borra de la URL el resultado que dejó la ruta de retorno de
+// la pasarela (?payment=<id>&status=<estado>). ok es false si la página no
+// viene de un pago. La query se borra siempre que trae status, para que
+// recargar no repita la acción.
+func TakeReturn() (paymentID, status string, ok bool) {
+	status, hasStatus := dom.GetQuery(paymentmanager.QueryStatus)
+	if !hasStatus {
+		return "", "", false
 	}
-	v.Element = *Div()
-	v.process()
-	return v
-}
-
-func (v *TakeReturn) Render() *Element {
-	return &v.Element
-}
-
-func (v *TakeReturn) process() {
-	token, _ := GetQuery("token_ws")
-	if token == "" {
-		token, _ = GetQuery("TBK_TOKEN")
-	}
-
-	if token == "" {
-		return
-	}
-
-	ClearQuery()
-
-	if v.OnOnlineReturn != nil {
-		v.OnOnlineReturn(token)
-	}
+	paymentID, _ = dom.GetQuery(paymentmanager.QueryPayment)
+	dom.ClearQuery()
+	return paymentID, status, true
 }

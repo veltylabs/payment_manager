@@ -2,39 +2,33 @@ package tests
 
 import (
 	"testing"
-	paymentmanager "github.com/veltylabs/payment_manager"
+
+	pm "github.com/veltylabs/payment_manager"
 )
 
 func TestTenant_ReadsRefundsAndReconcileAreScoped(t *testing.T) {
-	db := setupTestDB()
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
+	e := newEnv(t)
+	e.paidCounter(t, "p1", refID)
+	e.gw.Approve(e.started(t, "p2", "r2"))
 
-	_, _ = m.CreateCounterPayment(paymentmanager.CreateCounterPaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", Method: paymentmanager.MethodCash})
-	_, _ = m.RefundPayment(paymentmanager.RefundPaymentArgs{TenantId: "t1", Id: "r1", PaymentId: "p1", Amount: 200, Reason: "test_reason", Method: paymentmanager.MethodCash})
-
-	// GetPayment
-	_, err := m.GetPayment(paymentmanager.GetPaymentArgs{TenantId: "t2", Id: "p1"})
-	if err != paymentmanager.ErrNotFound {
-		t.Errorf("expected ErrNotFound for t2, got %v", err)
+	if _, err := e.m.GetPayment("t2", "p1"); err != pm.ErrNotFound {
+		t.Errorf("GetPayment from t2: %v", err)
 	}
-
-	// ListPaymentsByReference
-	listRef, _ := m.ListPaymentsByReference(paymentmanager.ListPaymentsByReferenceArgs{TenantId: "t2", ReferenceModule: "mod", ReferenceId: "ref1"})
-	if len(listRef) != 0 {
-		t.Errorf("expected empty list for t2")
+	if list, _ := e.m.ListPaymentsByReference("t2", refModule, refID); len(list) != 0 {
+		t.Errorf("ListPaymentsByReference from t2: %v", list)
 	}
-
-	// ListPayments
-	list, _ := m.ListPayments(paymentmanager.ListPaymentsArgs{TenantId: "t2", From: 0, To: 9999999999})
-	if len(list) != 0 {
-		t.Errorf("expected empty list for t2")
+	if list, _ := e.m.ListPayments("t2", 0, nowSec()+60); len(list) != 0 {
+		t.Errorf("ListPayments from t2: %v", list)
 	}
-
-	// ListRefunds
-	listRefunds, _ := m.ListRefunds(paymentmanager.ListRefundsArgs{TenantId: "t2", PaymentId: "p1"})
-	if len(listRefunds) != 0 {
-		t.Errorf("expected empty list for t2")
+	a := refundArgs("f1", "p1", 100)
+	a.TenantId = "t2"
+	if _, err := e.m.RefundPayment(a); err != pm.ErrNotFound {
+		t.Errorf("RefundPayment from t2: %v", err)
+	}
+	if n, _ := e.m.ReconcileOnlinePayments("t2", later()); n != 0 {
+		t.Errorf("Reconcile from t2 closed %d", n)
+	}
+	if p := e.payment(t, "p2"); p.Status != pm.StatusPending {
+		t.Errorf("t1 payment touched by t2 reconcile: %s", p.Status)
 	}
 }

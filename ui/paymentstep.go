@@ -1,143 +1,199 @@
 package ui
 
 import (
-	paymentmanager "github.com/veltylabs/payment_manager"
-	. "webtyp.com/dom"
-	. "webtyp.com/html"
-	"webtyp.com/router"
 	"webtyp.com/components/segmentedcontrol"
 	"webtyp.com/fmt"
+	"webtyp.com/lang"
+	"webtyp.com/model"
+	"webtyp.com/router"
+	"webtyp.com/widget"
+
+	. "webtyp.com/dom"
+	. "webtyp.com/html"
+
+	paymentmanager "github.com/veltylabs/payment_manager"
 )
 
+// NamePaymentStep es la identidad de widget del paso de pago.
+const NamePaymentStep = widget.Name("paymentstep")
+
+const (
+	PartAmount  = widget.Part("amount")
+	PartError   = widget.Part("error")
+	PartBody    = widget.Part("body")
+	PartReceipt = widget.Part("receipt")
+	PartPay     = widget.Part("pay")
+)
+
+var (
+	clsStepRoot    = NamePaymentStep.Root()
+	clsStepAmount  = NamePaymentStep.Class(PartAmount)
+	clsStepError   = NamePaymentStep.Class(PartError)
+	clsStepBody    = NamePaymentStep.Class(PartBody)
+	clsStepReceipt = NamePaymentStep.Class(PartReceipt)
+	clsStepPay     = NamePaymentStep.Class(PartPay)
+)
+
+// Textos fijos (claves en inglés; su español en lang.json).
+const (
+	textLoading       lang.Text = "Loading…"
+	textNothingToPay  lang.Text = "Nothing to pay"
+	textCash          lang.Text = "Cash"
+	textDebit         lang.Text = "Debit"
+	textCredit        lang.Text = "Credit"
+	textTransfer      lang.Text = "Transfer"
+	textReceiptNumber lang.Text = "Receipt number"
+	textRegisterPay   lang.Text = "Register payment"
+	textPayWithWebpay lang.Text = "Pay with Webpay"
+)
+
+// FieldToken es el campo del formulario con que la pasarela recibe el token.
+const FieldToken = "token_ws"
+
+// PaymentStep cobra una referencia. En mesón registra el pago con su medio; en
+// online lleva al cliente a la pasarela. Lo incrusta, por ejemplo, el paso 6 de
+// la reserva de appointment_booking.
 type PaymentStep struct {
-	Element
-	Caller    router.Caller
-	TenantId  string
-	RefModule string
-	RefId     string
-	OnPaid    func()
+	Element // value embed — NEVER pointer
 
-	amount    *SignalString
-	errorMsg  *SignalString
-	nodes     *SignalNodes
+	Caller          router.Caller
+	IDs             model.IDGenerator
+	TenantID        string
+	Channel         string // paymentmanager.ChannelCounter | paymentmanager.ChannelOnline
+	ReferenceModule string
+	ReferenceID     string
+	ReturnTo        string                 // online: id de la pantalla (hash) a la que se vuelve
+	OnPaid          func(paymentID string) // mesón: después de registrar el pago
+
+	amount  *SignalString
+	errMsg  *SignalString
+	body    *SignalNodes
+	busy    *SignalBool
+	method  string
+	receipt *SignalString
 }
 
-func NewPaymentStep(caller router.Caller, tenantId, refModule, refId string, onPaid func()) *PaymentStep {
-	v := &PaymentStep{
-		Caller:    caller,
-		TenantId:  tenantId,
-		RefModule: refModule,
-		RefId:     refId,
-		OnPaid:    onPaid,
-		amount:    NewString("Cargando..."),
-		errorMsg:  NewString(""),
-		nodes:     NewNodes(),
+func (s *PaymentStep) WidgetName() widget.Name { return NamePaymentStep }
+func (s *PaymentStep) WidgetKind() widget.Kind { return widget.Form }
+
+// Init prepara las señales y pide el monto. Llamarla de nuevo no hace nada.
+func (s *PaymentStep) Init(_ Ctx) {
+	if s.amount != nil {
+		return
 	}
-	v.Element = *Div().
-		Child(
-			Div().BindText(v.errorMsg).Attr("class", "error"),
-			H2().BindText(v.amount),
-			Div().BindChildren(v.nodes),
-		)
-	v.loadCharge()
-	return v
+	s.amount = NewString(lang.Translate(textLoading).String())
+	s.errMsg = NewString("")
+	s.body = NewNodes()
+	s.busy = NewBool(false)
+	s.receipt = NewString("")
+	s.method = paymentmanager.MethodCash
+	s.loadCharge()
 }
 
-func (v *PaymentStep) Render() *Element {
-	return &v.Element
+func (s *PaymentStep) Render() *Element {
+	s.Init(nil)
+	return Div().Set(clsStepRoot.AsAttr()).Child(
+		P().Set(clsStepAmount.AsAttr()).BindText(s.amount),
+		P().Set(clsStepError.AsAttr()).Attr("role", "alert").BindText(s.errMsg),
+		Div().Set(clsStepBody.AsAttr()).BindChildren(s.body),
+	)
 }
 
-func (v *PaymentStep) loadCharge() {
+func (s *PaymentStep) loadCharge() {
 	out := &paymentmanager.ChargeResult{}
-	args := paymentmanager.GetChargeArgs{
-		TenantId:        v.TenantId,
-		ReferenceModule: v.RefModule,
-		ReferenceId:     v.RefId,
-	}
-
-	v.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpGetCharge, &args, out, func(err error) {
-		if err != nil {
-			v.errorMsg.Set("Error: " + err.Error())
-			v.amount.Set("")
-			return
-		}
-
-		if out.Amount == 0 {
-			v.amount.Set("Nada que pagar")
-			if v.OnPaid != nil {
-				v.OnPaid()
+	s.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpGetCharge,
+		&paymentmanager.GetChargeArgs{TenantId: s.TenantID, ReferenceModule: s.ReferenceModule, ReferenceId: s.ReferenceID}, out,
+		func(err error) {
+			if err != nil {
+				s.amount.Set("")
+				s.errMsg.Set(err.Error())
+				return
 			}
-			return
-		}
-
-		v.amount.Set("Total a pagar: " + paymentmanager.FormatAmount(out.Amount, out.Currency))
-		v.renderMethods()
-	})
+			if !out.Payable {
+				s.amount.Set(lang.Translate(textNothingToPay).String())
+				return
+			}
+			s.amount.Set(paymentmanager.FormatAmount(out.Amount, out.Currency))
+			if s.Channel == paymentmanager.ChannelOnline {
+				s.body.Set([]*Element{s.payButton(textPayWithWebpay, s.startOnline)})
+				return
+			}
+			s.body.Set([]*Element{s.methodPicker(), s.receiptField(), s.payButton(textRegisterPay, s.registerCounter)})
+		})
 }
 
-func (v *PaymentStep) renderMethods() {
-	method := paymentmanager.MethodCash
-	ctrl := segmentedcontrol.SegmentedControl{
+func (s *PaymentStep) methodPicker() *Element {
+	picker := &segmentedcontrol.SegmentedControl{
 		Options: []segmentedcontrol.Option{
-			{Value: paymentmanager.MethodCash, Label: "Efectivo"},
-			{Value: "CARD", Label: "Tarjeta (Máquina)"},
-			{Value: "WEBPAY", Label: "Webpay"},
+			{Value: paymentmanager.MethodCash, Label: textCash},
+			{Value: paymentmanager.MethodDebit, Label: textDebit},
+			{Value: paymentmanager.MethodCredit, Label: textCredit},
+			{Value: paymentmanager.MethodTransfer, Label: textTransfer},
 		},
-		Selected: method,
-		OnChange: func(val string) { method = val },
+		Selected: s.method,
+		OnChange: func(v string) { s.method = v },
 	}
-
-	btn := Button().Text("Pagar").OnClick(func(_ Event) {
-		if method == "WEBPAY" {
-			v.startOnlinePayment()
-		} else {
-			v.createCounterPayment(method)
-		}
-	})
-
-	v.nodes.Set([]*Element{
-		ctrl.Render(),
-		btn,
-	})
+	return picker.Render()
 }
 
-func (v *PaymentStep) createCounterPayment(method string) {
+func (s *PaymentStep) receiptField() *Element {
+	return Label().Set(clsStepReceipt.AsAttr()).
+		Text(lang.Translate(textReceiptNumber).String()).
+		Child(Input("text").Attr("name", "receipt").Bind(s.receipt))
+}
+
+func (s *PaymentStep) payButton(label lang.Text, run func()) *Element {
+	return Button().Set(clsStepPay.AsAttr()).
+		Attr("type", "button").
+		BindState(widget.Busy, s.busy).
+		Text(lang.Translate(label).String()).
+		OnClick(func(Event) {
+			if s.busy.Get() {
+				return
+			}
+			s.busy.Set(true)
+			s.errMsg.Set("")
+			run()
+		})
+}
+
+func (s *PaymentStep) registerCounter() {
 	out := &paymentmanager.Payment{}
-	args := paymentmanager.CreateCounterPaymentArgs{
-		TenantId:        v.TenantId,
-		Id:              "tmp",
-		ReferenceModule: v.RefModule,
-		ReferenceId:     v.RefId,
-		Method:          method,
+	args := &paymentmanager.CreateCounterPaymentArgs{
+		TenantId:        s.TenantID,
+		Id:              s.IDs.NewID(),
+		ReferenceModule: s.ReferenceModule,
+		ReferenceId:     s.ReferenceID,
+		Method:          s.method,
+		ReceiptNumber:   s.receipt.Get(),
 	}
-
-	v.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpCreateCounterPayment, &args, out, func(err error) {
+	s.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpCreateCounterPayment, args, out, func(err error) {
+		s.busy.Set(false)
 		if err != nil {
-			v.errorMsg.Set("Error al registrar pago: " + err.Error())
+			s.errMsg.Set(err.Error())
 			return
 		}
-		if v.OnPaid != nil {
-			v.OnPaid()
+		if s.OnPaid != nil {
+			s.OnPaid(out.Id)
 		}
 	})
 }
 
-
-func (v *PaymentStep) startOnlinePayment() {
-	out := &paymentmanager.GatewayStarted{}
-	args := paymentmanager.StartOnlinePaymentArgs{
-		TenantId:        v.TenantId,
-		Id:              "tmp",
-		ReferenceModule: v.RefModule,
-		ReferenceId:     v.RefId,
-		ReturnTo:        "", // dom.URL() in wasm would be fine, mock stub for build
+func (s *PaymentStep) startOnline() {
+	out := &paymentmanager.StartOnlinePaymentResult{}
+	args := &paymentmanager.StartOnlinePaymentArgs{
+		TenantId:        s.TenantID,
+		Id:              s.IDs.NewID(),
+		ReferenceModule: s.ReferenceModule,
+		ReferenceId:     s.ReferenceID,
+		ReturnTo:        s.ReturnTo,
 	}
-
-	v.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpStartOnlinePayment, &args, out, func(err error) {
+	s.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpStartOnlinePayment, args, out, func(err error) {
 		if err != nil {
-			v.errorMsg.Set("Error al iniciar Webpay: " + err.Error())
+			s.busy.Set(false)
+			s.errMsg.Set(err.Error())
 			return
 		}
-		NavigatePost(out.RedirectURL, []fmt.KeyValue{{Key: "token_ws", Value: out.Token}})
+		NavigatePost(out.RedirectUrl, []fmt.KeyValue{{Key: FieldToken, Value: out.Token}})
 	})
 }

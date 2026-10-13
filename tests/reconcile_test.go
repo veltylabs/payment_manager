@@ -1,148 +1,165 @@
 package tests
 
 import (
-	"errors"
 	"testing"
-	paymentmanager "github.com/veltylabs/payment_manager"
-	"webtyp.com/time"
+
+	"webtyp.com/storage"
+	tm "webtyp.com/time"
+
+	pm "github.com/veltylabs/payment_manager"
 )
 
-func TestReconcile_RecentPendingUntouched(t *testing.T) {
-	db := setupTestDB()
-	gw := &mockGateway{startRes: paymentmanager.GatewayStarted{Token: "tok1"}}
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Gateway: gw, ReturnURL: "http://r",
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
+func nowSec() int64 { return tm.Now() / 1_000_000_000 }
 
-	_, _ = m.StartOnlinePayment(paymentmanager.StartOnlinePaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", ReturnTo: "hash"})
+// later es un "ahora" en que el pago ya superó OnlinePendingTimeout.
+func later() int64 { return nowSec() + pm.OnlinePendingTimeout + 1 }
 
-	now := time.Now() / 1_000_000_000
-	res, err := m.ReconcileOnlinePayments("t1", int64(now))
+func reconcile(t *testing.T, e *env, now int64) int {
+	t.Helper()
+	n, err := e.m.ReconcileOnlinePayments(tenant, now)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("ReconcileOnlinePayments: %v", err)
 	}
-	if res.Closed != 0 {
-		t.Errorf("expected 0 closed, got %v", res.Closed)
+	return n
+}
+
+func TestReconcile_NoGatewayNothingToDo(t *testing.T) {
+	if n := reconcile(t, newEnvNoGateway(t), later()); n != 0 {
+		t.Fatalf("closed %d", n)
+	}
+}
+
+func TestReconcile_RecentPendingUntouched(t *testing.T) {
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	e.gw.Approve(token)
+	if n := reconcile(t, e, nowSec()); n != 0 {
+		t.Fatalf("closed %d, want 0", n)
+	}
+	if p := e.payment(t, "p1"); p.Status != pm.StatusPending {
+		t.Fatalf("status %s", p.Status)
 	}
 }
 
 func TestReconcile_OlderThanWindowExpiresWithoutGateway(t *testing.T) {
-	db := setupTestDB()
-	gw := &mockGateway{startRes: paymentmanager.GatewayStarted{Token: "tok1"}, statusErr: errors.New("gateway fail")}
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Gateway: gw, ReturnURL: "http://r",
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, _ = m.StartOnlinePayment(paymentmanager.StartOnlinePaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", ReturnTo: "hash"})
-
-	now := time.Now() / 1_000_000_000 + paymentmanager.GatewayStatusWindow + 1
-	res, err := m.ReconcileOnlinePayments("t1", int64(now))
-	if err != nil {
-		t.Fatal(err)
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	e.gw.Approve(token)
+	e.hook.onStatus = func() { t.Fatal("past the status window the gateway must not be asked") }
+	if n := reconcile(t, e, nowSec()+pm.GatewayStatusWindow+pm.OnlinePendingTimeout+1); n != 1 {
+		t.Fatalf("closed %d", n)
 	}
-	if res.Closed != 1 {
-		t.Errorf("expected 1 closed, got %v", res.Closed)
-	}
-
-	p, _ := m.GetPayment(paymentmanager.GetPaymentArgs{TenantId: "t1", Id: "p1"})
-	if p.Status != paymentmanager.StatusExpired {
-		t.Errorf("expected EXPIRED")
+	if p := e.payment(t, "p1"); p.Status != pm.StatusExpired {
+		t.Fatalf("status %s, want EXPIRED", p.Status)
 	}
 }
 
 func TestReconcile_GatewayErrorSkipsAndContinues(t *testing.T) {
-	db := setupTestDB()
-	gw := &mockGateway{startRes: paymentmanager.GatewayStarted{Token: "tok1"}, statusErr: errors.New("gateway fail")}
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Gateway: gw, ReturnURL: "http://r",
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, _ = m.StartOnlinePayment(paymentmanager.StartOnlinePaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", ReturnTo: "hash"})
-
-	now := time.Now() / 1_000_000_000 + paymentmanager.OnlinePendingTimeout + 1
-	res, err := m.ReconcileOnlinePayments("t1", int64(now))
-	if err != nil {
-		t.Fatal(err)
+	e := newEnv(t)
+	for _, id := range []string{"p1", "p2"} {
+		e.gw.Approve(e.started(t, id, "ref-"+id))
 	}
-	if res.Closed != 0 {
-		t.Errorf("expected 0 closed, got %v", res.Closed)
+	e.gw.FailNext(errSimulated)
+	if n := reconcile(t, e, later()); n != 1 {
+		t.Fatalf("closed %d, want 1 (the other is skipped)", n)
+	}
+	paid := 0
+	for _, id := range []string{"p1", "p2"} {
+		if e.payment(t, id).Status == pm.StatusPaid {
+			paid++
+		}
+	}
+	if paid != 1 {
+		t.Fatalf("paid %d, want 1", paid)
 	}
 }
 
 func TestReconcile_AuthorizedPays(t *testing.T) {
-	db := setupTestDB()
-	gw := &mockGateway{startRes: paymentmanager.GatewayStarted{Token: "tok1"}, statusRes: paymentmanager.GatewayResult{Outcome: paymentmanager.OutcomeAuthorized, Amount: 1000}}
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Gateway: gw, ReturnURL: "http://r",
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, _ = m.StartOnlinePayment(paymentmanager.StartOnlinePaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", ReturnTo: "hash"})
-
-	now := time.Now() / 1_000_000_000 + paymentmanager.OnlinePendingTimeout + 1
-	res, err := m.ReconcileOnlinePayments("t1", int64(now))
-	if err != nil {
-		t.Fatal(err)
+	e := newEnv(t)
+	e.gw.Approve(e.started(t, "p1", refID))
+	if n := reconcile(t, e, later()); n != 1 {
+		t.Fatalf("closed %d", n)
 	}
-	if res.Closed != 1 {
-		t.Errorf("expected 1 closed")
+	if p := e.payment(t, "p1"); p.Status != pm.StatusPaid {
+		t.Fatalf("status %s", p.Status)
 	}
-
-	p, _ := m.GetPayment(paymentmanager.GetPaymentArgs{TenantId: "t1", Id: "p1"})
-	if p.Status != paymentmanager.StatusPaid {
-		t.Errorf("expected PAID")
+	if got := e.pub.topics(); len(got) != 1 || got[0] != pm.EventPaymentPaid {
+		t.Fatalf("events %v", got)
 	}
 }
 
 func TestReconcile_RejectedFails(t *testing.T) {
-	db := setupTestDB()
-	gw := &mockGateway{startRes: paymentmanager.GatewayStarted{Token: "tok1"}, statusRes: paymentmanager.GatewayResult{Outcome: paymentmanager.OutcomeRejected}}
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Gateway: gw, ReturnURL: "http://r",
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, _ = m.StartOnlinePayment(paymentmanager.StartOnlinePaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", ReturnTo: "hash"})
-
-	now := time.Now() / 1_000_000_000 + paymentmanager.OnlinePendingTimeout + 1
-	res, err := m.ReconcileOnlinePayments("t1", int64(now))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.Closed != 1 {
-		t.Errorf("expected 1 closed")
-	}
-
-	p, _ := m.GetPayment(paymentmanager.GetPaymentArgs{TenantId: "t1", Id: "p1"})
-	if p.Status != paymentmanager.StatusFailed {
-		t.Errorf("expected FAILED")
+	e := newEnv(t)
+	e.gw.Reject(e.started(t, "p1", refID))
+	reconcile(t, e, later())
+	if p := e.payment(t, "p1"); p.Status != pm.StatusFailed {
+		t.Fatalf("status %s", p.Status)
 	}
 }
 
 func TestReconcile_StillPendingExpires(t *testing.T) {
-	db := setupTestDB()
-	gw := &mockGateway{startRes: paymentmanager.GatewayStarted{Token: "tok1"}, statusRes: paymentmanager.GatewayResult{Outcome: paymentmanager.OutcomePending}}
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Gateway: gw, ReturnURL: "http://r",
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, _ = m.StartOnlinePayment(paymentmanager.StartOnlinePaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", ReturnTo: "hash"})
-
-	now := time.Now() / 1_000_000_000 + paymentmanager.OnlinePendingTimeout + 1
-	res, err := m.ReconcileOnlinePayments("t1", int64(now))
-	if err != nil {
-		t.Fatal(err)
+	e := newEnv(t)
+	e.started(t, "p1", refID)
+	reconcile(t, e, later())
+	if p := e.payment(t, "p1"); p.Status != pm.StatusExpired {
+		t.Fatalf("status %s", p.Status)
 	}
-	if res.Closed != 1 {
-		t.Errorf("expected 1 closed")
-	}
+}
 
-	p, _ := m.GetPayment(paymentmanager.GetPaymentArgs{TenantId: "t1", Id: "p1"})
-	if p.Status != paymentmanager.StatusExpired {
-		t.Errorf("expected EXPIRED")
+func TestReconcile_AmountMismatchCountsAsClosed(t *testing.T) {
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	e.gw.Approve(token)
+	e.gw.SetCommitAmount(token, 1000)
+	if n := reconcile(t, e, later()); n != 1 {
+		t.Fatalf("closed %d", n)
+	}
+	if p := e.payment(t, "p1"); p.Status != pm.StatusFailed || e.gw.Refunded(token) != 1000 {
+		t.Fatalf("status %s refunded %d", p.Status, e.gw.Refunded(token))
+	}
+}
+
+func TestReconcile_RefundFailureSkips(t *testing.T) {
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	e.gw.Approve(token)
+	e.gw.SetCommitAmount(token, 1000)
+	e.hook.refundErr = errSimulated
+	if n := reconcile(t, e, later()); n != 0 {
+		t.Fatalf("closed %d, want 0 (retried later)", n)
+	}
+	if p := e.payment(t, "p1"); p.Status != pm.StatusPending {
+		t.Fatalf("status %s", p.Status)
+	}
+}
+
+func TestReconcile_ConflictSkips(t *testing.T) {
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	e.gw.Approve(token)
+	e.hook.onStatus = func() {
+		if _, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{AbortToken: token}); err != nil {
+			t.Fatalf("concurrent abort: %v", err)
+		}
+	}
+	if n := reconcile(t, e, later()); n != 0 {
+		t.Fatalf("closed %d, want 0 (another process closed it)", n)
+	}
+}
+
+func TestReconcile_ListErrorReturned(t *testing.T) {
+	e := newEnv(t)
+	e.conn.failOn("payment", storage.ActionReadAll, 0)
+	if _, err := e.m.ReconcileOnlinePayments(tenant, later()); err != errSimulated {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestReconcile_UpdateErrorReturned(t *testing.T) {
+	e := newEnv(t)
+	e.started(t, "p1", refID)
+	e.conn.failOn("payment", storage.ActionUpdate, 0)
+	if _, err := e.m.ReconcileOnlinePayments(tenant, later()); err != errSimulated {
+		t.Fatalf("err = %v", err)
 	}
 }

@@ -61,10 +61,12 @@ var PaymentModel = model.Definition{
 		{Name: "status", Type: model.Text(), NotNull: true},
 		{Name: "refunded_amount", Type: model.Int()},
 		{Name: "provider_token", Type: model.Text(), OmitEmpty: true},
-		{Name: "authorization_code", Type: model.Text(), OmitEmpty: true},
-		{Name: "payment_type_code", Type: model.Text(), OmitEmpty: true},
+		// Lo que devuelve la pasarela se valida antes de guardarse: código de
+		// autorización hasta 6 caracteres (Webpay) y últimos 4 dígitos de la tarjeta.
+		{Name: "authorization_code", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Letters: true, Numbers: true, Maximum: 6}},
+		{Name: "payment_type_code", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Letters: true, Maximum: 2}},
 		{Name: "installments", Type: model.Int(), OmitEmpty: true},
-		{Name: "card_last4", Type: model.Text(), OmitEmpty: true},
+		{Name: "card_last4", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Numbers: true, Maximum: 4}},
 		{Name: "receipt_number", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Maximum: 40}},
 		{Name: "return_to", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'_', '-'}, Maximum: 60}},
 		{Name: "created_by", Type: model.Text(), OmitEmpty: true},
@@ -74,7 +76,6 @@ var PaymentModel = model.Definition{
 		{Name: "revision", Type: model.Int()},
 	},
 }
-
 
 var RefundModel = model.Definition{
 	Name: "refund",
@@ -111,16 +112,17 @@ var StartOnlinePaymentArgsModel = model.Definition{
 		{Name: "id", Type: model.Text(), NotNull: true},
 		{Name: "reference_module", Type: model.Text(), NotNull: true},
 		{Name: "reference_id", Type: model.Text(), NotNull: true},
-		{Name: "return_to", Type: model.Text(), NotNull: true},
+		// return_to es la pantalla (hash) a la que vuelve el navegador; opcional.
+		{Name: "return_to", Type: model.Text(), Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'_', '-'}, Maximum: 60}},
 	},
 }
 
 var StartOnlinePaymentResultModel = model.Definition{
 	Name: "start_online_payment_result",
 	Fields: model.Fields{
-		{Name: "payment_id", Type: model.Text(), NotNull: true},
-		{Name: "redirect_url", Type: model.Text(), NotNull: true},
-		{Name: "token", Type: model.Text(), NotNull: true},
+		{Name: "payment_id", Type: model.Text()},
+		{Name: "redirect_url", Type: model.Text()},
+		{Name: "token", Type: model.Text()},
 	},
 }
 
@@ -135,8 +137,8 @@ var GetPaymentArgsModel = model.Definition{
 var PaymentStatusResultModel = model.Definition{
 	Name: "payment_status_result",
 	Fields: model.Fields{
-		{Name: "id", Type: model.Text(), NotNull: true},
-		{Name: "status", Type: model.Text(), NotNull: true},
+		{Name: "id", Type: model.Text()},
+		{Name: "status", Type: model.Text()},
 	},
 }
 
@@ -152,9 +154,9 @@ var GetChargeArgsModel = model.Definition{
 var ChargeResultModel = model.Definition{
 	Name: "charge_result",
 	Fields: model.Fields{
-		{Name: "amount", Type: model.Int(), NotNull: true},
-		{Name: "currency", Type: model.Text(), NotNull: true},
-		{Name: "payable", Type: model.Bool(), NotNull: true},
+		{Name: "amount", Type: model.Int()},
+		{Name: "currency", Type: model.Text()},
+		{Name: "payable", Type: model.Bool()},
 	},
 }
 
@@ -206,6 +208,6 @@ var ReconcileOnlinePaymentsArgsModel = model.Definition{
 var ReconcileResultModel = model.Definition{
 	Name: "reconcile_result",
 	Fields: model.Fields{
-		{Name: "closed", Type: model.Int(), NotNull: true},
+		{Name: "closed", Type: model.Int()},
 	},
 }

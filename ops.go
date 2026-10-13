@@ -1,11 +1,11 @@
 package paymentmanager
 
 import (
-	"webtyp.com/time"
 	"webtyp.com/model"
 	"webtyp.com/router"
 )
 
+// Operaciones del módulo; en el cable van como "payment_manager.<op>".
 const (
 	OpGetCharge               = "get_charge"
 	OpCreateCounterPayment    = "create_counter_payment"
@@ -19,305 +19,220 @@ const (
 	OpReconcileOnlinePayments = "reconcile_online_payments"
 )
 
+// Recursos RBAC. La app concede ResourcePaymentOnline a la identidad anónima
+// para la reserva online; el resto, solo al personal.
 const (
 	ResourcePayment       = "payment"
 	ResourcePaymentOnline = "payment_online"
 	ResourceRefund        = "refund"
 )
 
-func (m *Module) ModelName() string {
-	return ModelName
-}
+// QueryPayment y QueryStatus son los parámetros de la query con que la ruta de
+// retorno de la pasarela devuelve el navegador a la app:
+// /?payment=<id>&status=<estado>#<pantalla>.
+const (
+	QueryPayment = "payment"
+	QueryStatus  = "status"
+)
+
+func (m *Module) ModelName() string { return ModelName }
+
+var _ router.OperationModule = (*Module)(nil)
 
 func (m *Module) MountOperations(reg router.OperationRegistry) {
-	reg.Operation(OpGetCharge, m.getCharge).
-		Requires(model.Resource(ResourcePaymentOnline), model.Action(model.ActionRead)).
-		Accepts(&GetChargeArgs{})
-
-	reg.Operation(OpCreateCounterPayment, m.createCounterPayment).
-		Requires(model.Resource(ResourcePayment), model.Action(model.ActionCreate)).
-		Accepts(&CreateCounterPaymentArgs{})
-
-	reg.Operation(OpStartOnlinePayment, m.startOnlinePayment).
-		Requires(model.Resource(ResourcePaymentOnline), model.Action(model.ActionCreate)).
-		Accepts(&StartOnlinePaymentArgs{})
-
-	reg.Operation(OpGetPaymentStatus, m.getPaymentStatus).
-		Requires(model.Resource(ResourcePaymentOnline), model.Action(model.ActionRead)).
-		Accepts(&GetPaymentArgs{})
-
-	reg.Operation(OpGetPayment, m.getPayment).
-		Requires(model.Resource(ResourcePayment), model.Action(model.ActionRead)).
-		Accepts(&GetPaymentArgs{})
-
-	reg.Operation(OpListPaymentsByReference, m.listPaymentsByReference).
-		Requires(model.Resource(ResourcePayment), model.Action(model.ActionRead)).
-		Accepts(&ListPaymentsByReferenceArgs{})
-
-	reg.Operation(OpListPayments, m.listPayments).
-		Requires(model.Resource(ResourcePayment), model.Action(model.ActionRead)).
-		Accepts(&ListPaymentsArgs{})
-
-	reg.Operation(OpRefundPayment, m.refundPayment).
-		Requires(model.Resource(ResourceRefund), model.Action(model.ActionCreate)).
-		Accepts(&RefundPaymentArgs{})
-
-	reg.Operation(OpListRefunds, m.listRefunds).
-		Requires(model.Resource(ResourceRefund), model.Action(model.ActionRead)).
-		Accepts(&ListRefundsArgs{})
-
-	reg.Operation(OpReconcileOnlinePayments, m.reconcileOnlinePayments).
-		Requires(model.Resource(ResourcePayment), model.Action(model.ActionUpdate)).
-		Accepts(&ReconcileOnlinePaymentsArgs{})
+	reg.Operation(OpGetCharge, m.opGetCharge).Requires(ResourcePaymentOnline, model.Read).Accepts(&GetChargeArgs{})
+	reg.Operation(OpCreateCounterPayment, m.opCreateCounterPayment).Requires(ResourcePayment, model.Create).Accepts(&CreateCounterPaymentArgs{})
+	reg.Operation(OpStartOnlinePayment, m.opStartOnlinePayment).Requires(ResourcePaymentOnline, model.Create).Accepts(&StartOnlinePaymentArgs{})
+	reg.Operation(OpGetPaymentStatus, m.opGetPaymentStatus).Requires(ResourcePaymentOnline, model.Read).Accepts(&GetPaymentArgs{})
+	reg.Operation(OpGetPayment, m.opGetPayment).Requires(ResourcePayment, model.Read).Accepts(&GetPaymentArgs{})
+	reg.Operation(OpListPaymentsByReference, m.opListPaymentsByReference).Requires(ResourcePayment, model.Read).Accepts(&ListPaymentsByReferenceArgs{})
+	reg.Operation(OpListPayments, m.opListPayments).Requires(ResourcePayment, model.Read).Accepts(&ListPaymentsArgs{})
+	reg.Operation(OpRefundPayment, m.opRefundPayment).Requires(ResourceRefund, model.Create).Accepts(&RefundPaymentArgs{})
+	reg.Operation(OpListRefunds, m.opListRefunds).Requires(ResourceRefund, model.Read).Accepts(&ListRefundsArgs{})
+	reg.Operation(OpReconcileOnlinePayments, m.opReconcileOnlinePayments).Requires(ResourcePayment, model.Update).Accepts(&ReconcileOnlinePaymentsArgs{})
 }
 
-func ErrorStatus(err error) int {
-	if err == ErrNotFound || err == ErrRefundNotFound {
-		return 404
-	}
+// StatusFor es el código HTTP de un error del módulo (tabla del plan, §5).
+func StatusFor(err error) int {
 	switch err {
-	case ErrMissingArgs, ErrUnknownReference, ErrNotPayable, ErrUnsupportedCurrency, ErrInvalidMethod, ErrInvalidTransition, ErrRefundExceeds:
+	case ErrNotFound, ErrRefundNotFound:
+		return 404
+	case ErrMissingArgs, ErrUnknownReference, ErrNotPayable, ErrUnsupportedCurrency,
+		ErrInvalidMethod, ErrInvalidTransition, ErrRefundExceeds:
 		return 400
 	case ErrIdTaken, ErrAlreadyPaid, ErrNotPaid, ErrConflict:
 		return 409
-	case ErrGatewayUnavailable, ErrGatewayFailed, ErrAmountMismatch:
-		return 500
 	}
 	return 500
 }
 
 func writeError(ctx router.Context, err error) {
-	ctx.WriteStatus(ErrorStatus(err))
-	ctx.Write([]byte(err.Error()))
+	ctx.WriteStatus(StatusFor(err))
+	_, _ = ctx.Write([]byte(err.Error()))
 }
 
-func (m *Module) getCharge(ctx router.Context) {
-	var args GetChargeArgs
-	if err := ctx.Decode(&args); err != nil {
+// decode lee y valida los argumentos; false = ya respondió 400.
+func decode(ctx router.Context, args interface {
+	model.Decodable
+	Validate(byte) error
+}, action byte) bool {
+	if err := ctx.Decode(args); err != nil {
 		ctx.WriteStatus(400)
-		return
+		_, _ = ctx.Write([]byte(err.Error()))
+		return false
 	}
-	if err := args.Validate(byte(model.Action(model.ActionRead))); err != nil {
+	if err := args.Validate(action); err != nil {
 		ctx.WriteStatus(400)
-		ctx.Write([]byte(err.Error()))
-		return
+		_, _ = ctx.Write([]byte(err.Error()))
+		return false
 	}
-
-	amt, cur, pay, err := m.Charge(args.TenantId, args.ReferenceModule, args.ReferenceId)
-	if err != nil {
-		writeError(ctx, err)
-		return
-	}
-
-	res := ChargeResult{Amount: amt, Currency: cur, Payable: pay}
-	ctx.Encode(&res)
+	return true
 }
 
-func (m *Module) createCounterPayment(ctx router.Context) {
-	var args CreateCounterPaymentArgs
-	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
-		return
-	}
-	if err := args.Validate(byte(model.Action(model.ActionCreate))); err != nil {
-		ctx.WriteStatus(400)
-		ctx.Write([]byte(err.Error()))
-		return
-	}
-
-	p, err := m.CreateCounterPayment(args)
-	if err != nil {
-		writeError(ctx, err)
-		return
-	}
+// public devuelve el pago sin el token de la pasarela, que nunca sale del servidor.
+func public(p Payment) *Payment {
 	p.ProviderToken = ""
-	ctx.Encode(&p)
+	return &p
 }
 
-func (m *Module) startOnlinePayment(ctx router.Context) {
-	var args StartOnlinePaymentArgs
-	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
-		return
+func publicList(payments []Payment) *PaymentList {
+	list := make(PaymentList, len(payments))
+	for i := range payments {
+		list[i] = public(payments[i])
 	}
-	if err := args.Validate(byte(model.Action(model.ActionCreate))); err != nil {
-		ctx.WriteStatus(400)
-		ctx.Write([]byte(err.Error()))
-		return
-	}
+	return &list
+}
 
-	res, err := m.StartOnlinePayment(args)
+func (m *Module) opGetCharge(ctx router.Context) {
+	var a GetChargeArgs
+	if !decode(ctx, &a, model.ActionRead) {
+		return
+	}
+	amount, currency, payable, err := m.Charge(a.TenantId, a.ReferenceModule, a.ReferenceId)
 	if err != nil {
 		writeError(ctx, err)
 		return
 	}
-	ctx.Encode(&res)
+	_ = ctx.Encode(&ChargeResult{Amount: amount, Currency: currency, Payable: payable})
 }
 
-func (m *Module) getPaymentStatus(ctx router.Context) {
-	var args GetPaymentArgs
-	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+func (m *Module) opCreateCounterPayment(ctx router.Context) {
+	var a CreateCounterPaymentArgs
+	if !decode(ctx, &a, model.ActionCreate) {
 		return
 	}
-	if err := args.Validate(byte(model.Action(model.ActionRead))); err != nil {
-		ctx.WriteStatus(400)
-		ctx.Write([]byte(err.Error()))
-		return
-	}
-
-	p, err := m.GetPayment(args)
+	p, err := m.CreateCounterPayment(a)
 	if err != nil {
 		writeError(ctx, err)
 		return
 	}
-	res := PaymentStatusResult{Id: p.Id, Status: p.Status}
-	ctx.Encode(&res)
+	_ = ctx.Encode(public(p))
 }
 
-func (m *Module) getPayment(ctx router.Context) {
-	var args GetPaymentArgs
-	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+func (m *Module) opStartOnlinePayment(ctx router.Context) {
+	var a StartOnlinePaymentArgs
+	if !decode(ctx, &a, model.ActionCreate) {
 		return
 	}
-	if err := args.Validate(byte(model.Action(model.ActionRead))); err != nil {
-		ctx.WriteStatus(400)
-		ctx.Write([]byte(err.Error()))
-		return
-	}
-
-	p, err := m.GetPayment(args)
+	res, err := m.StartOnlinePayment(a)
 	if err != nil {
 		writeError(ctx, err)
 		return
 	}
-	p.ProviderToken = ""
-	ctx.Encode(&p)
+	_ = ctx.Encode(&res)
 }
 
-
-func (m *Module) listPaymentsByReference(ctx router.Context) {
-	var args ListPaymentsByReferenceArgs
-	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+func (m *Module) opGetPaymentStatus(ctx router.Context) {
+	var a GetPaymentArgs
+	if !decode(ctx, &a, model.ActionRead) {
 		return
 	}
-	if err := args.Validate(byte(model.Action(model.ActionRead))); err != nil {
-		ctx.WriteStatus(400)
-		ctx.Write([]byte(err.Error()))
-		return
-	}
-
-	list, err := m.ListPaymentsByReference(args)
+	p, err := m.GetPayment(a.TenantId, a.Id)
 	if err != nil {
 		writeError(ctx, err)
 		return
 	}
-	for i := range list {
-		list[i].ProviderToken = ""
-	}
-
-	listObj := make(PaymentList, len(list))
-	for i, p := range list {
-		listObj[i] = p
-	}
-	ctx.Encode(&listObj)
+	_ = ctx.Encode(&PaymentStatusResult{Id: p.Id, Status: p.Status})
 }
 
-func (m *Module) listPayments(ctx router.Context) {
-	var args ListPaymentsArgs
-	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+func (m *Module) opGetPayment(ctx router.Context) {
+	var a GetPaymentArgs
+	if !decode(ctx, &a, model.ActionRead) {
 		return
 	}
-	if err := args.Validate(byte(model.Action(model.ActionRead))); err != nil {
-		ctx.WriteStatus(400)
-		ctx.Write([]byte(err.Error()))
-		return
-	}
-
-	list, err := m.ListPayments(args)
+	p, err := m.GetPayment(a.TenantId, a.Id)
 	if err != nil {
 		writeError(ctx, err)
 		return
 	}
-	for i := range list {
-		list[i].ProviderToken = ""
-	}
-
-	listObj := make(PaymentList, len(list))
-	for i, p := range list {
-		listObj[i] = p
-	}
-	ctx.Encode(&listObj)
+	_ = ctx.Encode(public(p))
 }
 
-func (m *Module) refundPayment(ctx router.Context) {
-	var args RefundPaymentArgs
-	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+func (m *Module) opListPaymentsByReference(ctx router.Context) {
+	var a ListPaymentsByReferenceArgs
+	if !decode(ctx, &a, model.ActionRead) {
 		return
 	}
-	if err := args.Validate(byte(model.Action(model.ActionCreate))); err != nil {
-		ctx.WriteStatus(400)
-		ctx.Write([]byte(err.Error()))
-		return
-	}
-
-	r, err := m.RefundPayment(args)
+	list, err := m.ListPaymentsByReference(a.TenantId, a.ReferenceModule, a.ReferenceId)
 	if err != nil {
 		writeError(ctx, err)
 		return
 	}
-	ctx.Encode(&r)
+	_ = ctx.Encode(publicList(list))
 }
 
-
-func (m *Module) listRefunds(ctx router.Context) {
-	var args ListRefundsArgs
-	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+func (m *Module) opListPayments(ctx router.Context) {
+	var a ListPaymentsArgs
+	if !decode(ctx, &a, model.ActionRead) {
 		return
 	}
-	if err := args.Validate(byte(model.Action(model.ActionRead))); err != nil {
-		ctx.WriteStatus(400)
-		ctx.Write([]byte(err.Error()))
-		return
-	}
-
-	list, err := m.ListRefunds(args)
+	list, err := m.ListPayments(a.TenantId, a.From, a.To)
 	if err != nil {
 		writeError(ctx, err)
 		return
 	}
-
-	listObj := make(RefundList, len(list))
-	for i, r := range list {
-		listObj[i] = r
-	}
-	ctx.Encode(&listObj)
+	_ = ctx.Encode(publicList(list))
 }
 
-func (m *Module) reconcileOnlinePayments(ctx router.Context) {
-	var args ReconcileOnlinePaymentsArgs
-	if err := ctx.Decode(&args); err != nil {
-		ctx.WriteStatus(400)
+func (m *Module) opRefundPayment(ctx router.Context) {
+	var a RefundPaymentArgs
+	if !decode(ctx, &a, model.ActionCreate) {
 		return
 	}
-	if err := args.Validate(byte(model.Action(model.ActionUpdate))); err != nil {
-		ctx.WriteStatus(400)
-		ctx.Write([]byte(err.Error()))
-		return
-	}
-
-	now := time.Now() / 1_000_000_000
-	res, err := m.ReconcileOnlinePayments(args.TenantId, int64(now))
+	ref, err := m.RefundPayment(a)
 	if err != nil {
 		writeError(ctx, err)
 		return
 	}
-	ctx.Encode(&res)
+	_ = ctx.Encode(&ref)
 }
 
-var _ router.OperationModule = (*Module)(nil)
+func (m *Module) opListRefunds(ctx router.Context) {
+	var a ListRefundsArgs
+	if !decode(ctx, &a, model.ActionRead) {
+		return
+	}
+	refunds, err := m.ListRefunds(a.TenantId, a.PaymentId)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	list := make(RefundList, len(refunds))
+	for i := range refunds {
+		list[i] = &refunds[i]
+	}
+	_ = ctx.Encode(&list)
+}
+
+func (m *Module) opReconcileOnlinePayments(ctx router.Context) {
+	var a ReconcileOnlinePaymentsArgs
+	if !decode(ctx, &a, model.ActionUpdate) {
+		return
+	}
+	closed, err := m.ReconcileOnlinePayments(a.TenantId, nowSeconds())
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	_ = ctx.Encode(&ReconcileResult{Closed: int64(closed)})
+}

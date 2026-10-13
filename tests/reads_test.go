@@ -2,81 +2,52 @@ package tests
 
 import (
 	"testing"
-	paymentmanager "github.com/veltylabs/payment_manager"
-	"webtyp.com/time"
+
+	pm "github.com/veltylabs/payment_manager"
 )
 
 func TestGetPayment(t *testing.T) {
-	db := setupTestDB()
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, _ = m.CreateCounterPayment(paymentmanager.CreateCounterPaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", Method: paymentmanager.MethodCash})
-
-	p, err := m.GetPayment(paymentmanager.GetPaymentArgs{TenantId: "t1", Id: "p1"})
-	if err != nil {
-		t.Fatal(err)
+	e := newEnv(t)
+	e.paidCounter(t, "p1", refID)
+	if p := e.payment(t, "p1"); p.Id != "p1" {
+		t.Fatalf("got %+v", p)
 	}
-	if p.Id != "p1" {
-		t.Errorf("expected p1")
-	}
+	_, err := e.m.GetPayment(tenant, "nope")
+	wantErr(t, err, pm.ErrNotFound)
 }
 
 func TestListPaymentsByReference(t *testing.T) {
-	db := setupTestDB()
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, _ = m.CreateCounterPayment(paymentmanager.CreateCounterPaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", Method: paymentmanager.MethodCash})
-
-	res, err := m.ListPaymentsByReference(paymentmanager.ListPaymentsByReferenceArgs{TenantId: "t1", ReferenceModule: "mod", ReferenceId: "ref1"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(res) != 1 || res[0].Id != "p1" {
-		t.Errorf("expected p1")
+	e := newEnv(t)
+	e.paidCounter(t, "p1", refID)
+	e.paidCounter(t, "p2", "r2")
+	list, err := e.m.ListPaymentsByReference(tenant, refModule, refID)
+	if err != nil || len(list) != 1 || list[0].Id != "p1" {
+		t.Fatalf("got %v, %v", list, err)
 	}
 }
 
 func TestListPayments_DateRange(t *testing.T) {
-	db := setupTestDB()
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, _ = m.CreateCounterPayment(paymentmanager.CreateCounterPaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", Method: paymentmanager.MethodCash})
-
-	now := time.Now() / 1_000_000_000
-	res, err := m.ListPayments(paymentmanager.ListPaymentsArgs{TenantId: "t1", From: int64(now) - 100, To: int64(now) + 100})
-	if err != nil {
-		t.Fatal(err)
+	e := newEnv(t)
+	e.paidCounter(t, "p1", refID)
+	now := nowSec()
+	in, err := e.m.ListPayments(tenant, now-60, now+60)
+	if err != nil || len(in) != 1 {
+		t.Fatalf("in range: %v, %v", in, err)
 	}
-	if len(res) != 1 || res[0].Id != "p1" {
-		t.Errorf("expected p1")
-	}
-
-	res2, _ := m.ListPayments(paymentmanager.ListPaymentsArgs{TenantId: "t1", From: int64(now) + 100, To: int64(now) + 200})
-	if len(res2) != 0 {
-		t.Errorf("expected empty")
+	out, err := e.m.ListPayments(tenant, now+60, now+120)
+	if err != nil || len(out) != 0 {
+		t.Fatalf("out of range: %v, %v", out, err)
 	}
 }
 
 func TestListRefunds(t *testing.T) {
-	db := setupTestDB()
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, _ = m.CreateCounterPayment(paymentmanager.CreateCounterPaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", Method: paymentmanager.MethodCash})
-	_, _ = m.RefundPayment(paymentmanager.RefundPaymentArgs{TenantId: "t1", Id: "r1", PaymentId: "p1", Amount: 200, Reason: "test_reason", Method: paymentmanager.MethodCash})
-
-	res, err := m.ListRefunds(paymentmanager.ListRefundsArgs{TenantId: "t1", PaymentId: "p1"})
-	if err != nil {
+	e := newEnv(t)
+	e.paidCounter(t, "p1", refID)
+	if _, err := e.m.RefundPayment(refundArgs("f1", "p1", 100)); err != nil {
 		t.Fatal(err)
 	}
-	if len(res) != 1 || res[0].Id != "r1" {
-		t.Errorf("expected r1")
+	refunds, err := e.m.ListRefunds(tenant, "p1")
+	if err != nil || len(refunds) != 1 || refunds[0].Id != "f1" {
+		t.Fatalf("got %v, %v", refunds, err)
 	}
 }

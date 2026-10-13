@@ -2,155 +2,131 @@ package tests
 
 import (
 	"testing"
-	"webtyp.com/orm"
+
 	"webtyp.com/storage"
-	"webtyp.com/storage/mem"
-	paymentmanager "github.com/veltylabs/payment_manager"
-	"webtyp.com/fmt"
-	"webtyp.com/model"
+
+	pm "github.com/veltylabs/payment_manager"
 )
 
-type failingConn struct {
-	storage.Conn
-	failTable  string
-	failAction storage.Action
-}
+const (
+	tPayment = "payment"
+	tRefund  = "refund"
+)
 
-func (f *failingConn) Compile(q storage.Query, m model.Model) (storage.Plan, error) {
-	if q.Table == f.failTable && q.Action == f.failAction {
-		return storage.Plan{}, fmt.Err("error simulado")
+func wantSimulated(t *testing.T, name string, err error) {
+	t.Helper()
+	if err != errSimulated {
+		t.Errorf("%s: err = %v, want the storage error", name, err)
 	}
-	return f.Conn.Compile(q, m)
-}
-
-func (f *failingConn) BeginTx() (storage.TxBoundExecutor, error) {
-	return f.Conn.(storage.TxExecutor).BeginTx()
-}
-
-func setupErrorDB(failTable string, failAction storage.Action) *orm.DB {
-	return orm.New(&failingConn{Conn: mem.New(), failTable: failTable, failAction: failAction})
 }
 
 func TestStorageErrors_CreateCounterPayment(t *testing.T) {
-	db := setupErrorDB("payment", storage.ActionCreate)
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, err := m.CreateCounterPayment(paymentmanager.CreateCounterPaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", Method: paymentmanager.MethodCash})
-	if err == nil {
-		t.Errorf("expected error")
+	cases := []struct {
+		name   string
+		action storage.Action
+		skip   int
+	}{
+		{"id lookup", storage.ActionReadOne, 0},
+		{"reference lookup", storage.ActionReadAll, 0},
+		{"insert", storage.ActionCreate, 0},
+	}
+	for _, c := range cases {
+		e := newEnv(t)
+		e.conn.failOn(tPayment, c.action, c.skip)
+		_, err := e.m.CreateCounterPayment(counterArgs("p1"))
+		wantSimulated(t, c.name, err)
 	}
 }
 
 func TestStorageErrors_StartOnlinePayment(t *testing.T) {
-	db := setupErrorDB("payment", storage.ActionCreate)
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Gateway: &mockGateway{}, ReturnURL: "http://r",
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, err := m.StartOnlinePayment(paymentmanager.StartOnlinePaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", ReturnTo: "hash"})
-	if err == nil {
-		t.Errorf("expected error")
+	for _, c := range []struct {
+		name   string
+		action storage.Action
+	}{{"id lookup", storage.ActionReadOne}, {"reference lookup", storage.ActionReadAll}, {"insert", storage.ActionCreate}} {
+		e := newEnv(t)
+		e.conn.failOn(tPayment, c.action, 0)
+		_, err := e.m.StartOnlinePayment(startArgs("p1"))
+		wantSimulated(t, c.name, err)
 	}
+	// insert of the FAILED record after a gateway error
+	e := newEnv(t)
+	e.gw.FailNext(errSimulated)
+	e.conn.failOn(tPayment, storage.ActionCreate, 0)
+	_, err := e.m.StartOnlinePayment(startArgs("p1"))
+	wantSimulated(t, "insert failed record", err)
 }
 
 func TestStorageErrors_CompleteOnlinePayment(t *testing.T) {
-	db := setupErrorDB("payment", storage.ActionReadOne)
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Gateway: &mockGateway{}, ReturnURL: "http://r",
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	e.conn.failOn(tPayment, storage.ActionReadOne, 0)
+	_, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	wantSimulated(t, "token lookup", err)
 
-	_, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{Token: "tok1"})
-	if err == nil {
-		t.Errorf("expected error")
-	}
+	e = newEnv(t)
+	token = e.started(t, "p1", refID)
+	e.gw.Approve(token)
+	e.conn.failOn(tPayment, storage.ActionUpdate, 0)
+	_, err = e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	wantSimulated(t, "update", err)
+
+	e = newEnv(t)
+	token = e.started(t, "p1", refID)
+	e.gw.Approve(token)
+	e.gw.SetCommitAmount(token, 1)
+	e.conn.failOn(tPayment, storage.ActionUpdate, 0)
+	_, err = e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	wantSimulated(t, "update after amount mismatch", err)
+
+	e = newEnv(t)
+	token = e.started(t, "p1", refID)
+	e.gw.Approve(token)
+	e.conn.failOn(tPayment, storage.ActionReadOne, 1) // the re-read inside the transaction
+	_, err = e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	wantSimulated(t, "re-read in tx", err)
 }
 
 func TestStorageErrors_RefundPayment(t *testing.T) {
-	memDb := mem.New()
-	ormDb := orm.New(memDb)
-	mOk, _ := paymentmanager.New(ormDb, paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-	mOk.CreateCounterPayment(paymentmanager.CreateCounterPaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", Method: paymentmanager.MethodCash})
+	e := newEnv(t)
+	e.paidCounter(t, "p1", refID)
+	e.conn.failOn(tRefund, storage.ActionReadOne, 0)
+	_, err := e.m.RefundPayment(refundArgs("f1", "p1", 100))
+	wantSimulated(t, "refund id lookup", err)
 
-	errDb := orm.New(&failingConn{Conn: memDb, failTable: "refund", failAction: storage.ActionCreate})
-	m, _ := paymentmanager.New(errDb, paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
+	e = newEnv(t)
+	e.paidCounter(t, "p1", refID)
+	e.conn.failOn(tPayment, storage.ActionReadOne, 0)
+	_, err = e.m.RefundPayment(refundArgs("f1", "p1", 100))
+	wantSimulated(t, "payment lookup", err)
 
-	_, err := m.RefundPayment(paymentmanager.RefundPaymentArgs{TenantId: "t1", Id: "r1", PaymentId: "p1", Amount: 200, Reason: "test_reason", Method: paymentmanager.MethodCash})
-	if err == nil {
-		t.Errorf("expected error during transaction")
-	}
-
-	res, _ := mOk.ListRefunds(paymentmanager.ListRefundsArgs{TenantId: "t1", PaymentId: "p1"})
-	if len(res) > 0 {
-		t.Errorf("expected refund transaction to be rolled back")
-	}
-}
-
-func TestStorageErrors_ReconcileOnlinePayments(t *testing.T) {
-	db := setupErrorDB("payment", storage.ActionReadAll)
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Gateway: &mockGateway{}, ReturnURL: "http://r",
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, err := m.ReconcileOnlinePayments("t1", 0)
-	if err == nil {
-		t.Errorf("expected error")
+	e = newEnv(t)
+	e.paidCounter(t, "p1", refID)
+	e.conn.failOn(tRefund, storage.ActionCreate, 0)
+	_, err = e.m.RefundPayment(refundArgs("f1", "p1", 100))
+	wantSimulated(t, "insert refund inside tx", err)
+	if p := e.payment(t, "p1"); p.RefundedAmount != 0 || p.Revision != 1 {
+		t.Fatalf("nothing written expected, got %+v", p)
 	}
 }
 
 func TestStorageErrors_PaidAmount(t *testing.T) {
-	db := setupErrorDB("payment", storage.ActionReadOne)
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, _, err := m.PaidAmount("t1", "p1", "mod", "ref1")
-	if err == nil {
-		t.Errorf("expected error")
-	}
+	e := newEnv(t)
+	e.paidCounter(t, "p1", refID)
+	e.conn.failOn(tPayment, storage.ActionReadOne, 0)
+	_, _, err := e.m.PaidAmount(tenant, "p1", refModule, refID)
+	wantSimulated(t, "lookup", err)
 }
 
 func TestStorageErrors_Reads(t *testing.T) {
-	db := setupErrorDB("payment", storage.ActionReadOne)
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
+	e := newEnv(t)
+	e.conn.failOn(tPayment, storage.ActionReadAll, 0)
+	_, err := e.m.ListPayments(tenant, 0, 1)
+	wantSimulated(t, "ListPayments", err)
+	_, err = e.m.ListPaymentsByReference(tenant, refModule, refID)
+	wantSimulated(t, "ListPaymentsByReference", err)
 
-	_, err := m.GetPayment(paymentmanager.GetPaymentArgs{TenantId: "t1", Id: "p1"})
-	if err == nil {
-		t.Errorf("expected error")
-	}
-
-	db2 := setupErrorDB("payment", storage.ActionReadAll)
-	m2, _ := paymentmanager.New(db2, paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, err = m2.ListPaymentsByReference(paymentmanager.ListPaymentsByReferenceArgs{TenantId: "t1", ReferenceModule: "mod", ReferenceId: "ref1"})
-	if err == nil {
-		t.Errorf("expected error")
-	}
-
-	_, err = m2.ListPayments(paymentmanager.ListPaymentsArgs{TenantId: "t1", From: 0, To: 0})
-	if err == nil {
-		t.Errorf("expected error")
-	}
-
-	db3 := setupErrorDB("refund", storage.ActionReadAll)
-	m3, _ := paymentmanager.New(db3, paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, err = m3.ListRefunds(paymentmanager.ListRefundsArgs{TenantId: "t1", PaymentId: "p1"})
-	if err == nil {
-		t.Errorf("expected error")
-	}
+	e = newEnv(t)
+	e.conn.failOn(tRefund, storage.ActionReadAll, 0)
+	_, err = e.m.ListRefunds(tenant, "p1")
+	wantSimulated(t, "ListRefunds", err)
 }

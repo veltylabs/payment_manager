@@ -1,7 +1,8 @@
 package paymentmanager
 
-import "webtyp.com/model"
-
+// Gateway es la pasarela de pago online. La implementación concreta
+// (github.com/veltylabs/transbank) la inyecta la app; sus llamadas son
+// síncronas y solo corren en el servidor.
 type Gateway interface {
 	Start(req GatewayStart) (GatewayStarted, error)
 	Commit(token string) (GatewayResult, error)
@@ -21,14 +22,6 @@ type GatewayStarted struct {
 	Token       string
 	RedirectURL string
 }
-
-func (s *GatewayStarted) DecodeFields(r model.FieldReader) {}
-func (s *GatewayStarted) IsNil() bool { return false }
-func (s *GatewayStarted) EncodeFields(w model.FieldWriter) {}
-func (s *GatewayStarted) Validate(action byte) error { return nil }
-func (s *GatewayStarted) ModelName() string { return "GatewayStarted" }
-func (s *GatewayStarted) Schema() []model.Field { return nil }
-func (s *GatewayStarted) Pointers() []string { return nil }
 
 const (
 	OutcomePending    = "pending"

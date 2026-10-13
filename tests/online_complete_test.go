@@ -1,218 +1,178 @@
 package tests
 
 import (
-	"errors"
 	"testing"
-	paymentmanager "github.com/veltylabs/payment_manager"
+
+	pm "github.com/veltylabs/payment_manager"
 )
 
+func TestComplete_NoGateway(t *testing.T) {
+	_, err := newEnvNoGateway(t).m.CompleteOnlinePayment(pm.OnlineReturn{Token: "x"})
+	wantErr(t, err, pm.ErrGatewayUnavailable)
+}
+
 func TestComplete_EmptyReturn(t *testing.T) {
-	m, _ := paymentmanager.New(setupTestDB(), paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{}}},
-	})
-	_, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{})
-	if err != paymentmanager.ErrMissingArgs {
-		t.Errorf("expected ErrMissingArgs, got %v", err)
-	}
+	_, err := newEnv(t).m.CompleteOnlinePayment(pm.OnlineReturn{})
+	wantErr(t, err, pm.ErrMissingArgs)
 }
 
 func TestComplete_UnknownAbortToken(t *testing.T) {
-	m, _ := paymentmanager.New(setupTestDB(), paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{}}},
-	})
-	_, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{AbortToken: "unknown"})
-	if err != paymentmanager.ErrNotFound {
-		t.Errorf("expected ErrNotFound, got %v", err)
-	}
+	_, err := newEnv(t).m.CompleteOnlinePayment(pm.OnlineReturn{AbortToken: "nope"})
+	wantErr(t, err, pm.ErrNotFound)
 }
 
 func TestComplete_UnknownBuyOrder(t *testing.T) {
-	m, _ := paymentmanager.New(setupTestDB(), paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{}}},
-	})
-	_, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{BuyOrder: "unknown"})
-	if err != paymentmanager.ErrNotFound {
-		t.Errorf("expected ErrNotFound, got %v", err)
-	}
+	_, err := newEnv(t).m.CompleteOnlinePayment(pm.OnlineReturn{BuyOrder: "nope"})
+	wantErr(t, err, pm.ErrNotFound)
 }
 
 func TestComplete_UnknownToken(t *testing.T) {
-	m, _ := paymentmanager.New(setupTestDB(), paymentmanager.Deps{
-		Charges: []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{}}},
-	})
-	_, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{Token: "unknown"})
-	if err != paymentmanager.ErrNotFound {
-		t.Errorf("expected ErrNotFound, got %v", err)
-	}
-}
-
-func setupCompleteTest(t *testing.T) (*paymentmanager.Module, *mockGateway, *mockPublisher) {
-	db := setupTestDB()
-	gw := &mockGateway{startRes: paymentmanager.GatewayStarted{Token: "tok123"}}
-	pub := &mockPublisher{}
-	m, _ := paymentmanager.New(db, paymentmanager.Deps{
-		Gateway:   gw,
-		ReturnURL: "http://return",
-		Publisher: pub,
-		Charges:   []paymentmanager.ChargeSource{{Module: "mod", Reader: mockChargeReader{amount: 1000, currency: paymentmanager.CurrencyCLP, payable: true}}},
-	})
-
-	_, err := m.StartOnlinePayment(paymentmanager.StartOnlinePaymentArgs{TenantId: "t1", Id: "p1", ReferenceModule: "mod", ReferenceId: "ref1", ReturnTo: "hash"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return m, gw, pub
-}
-
-func TestComplete_AbortOnSettled(t *testing.T) {
-	m, gw, _ := setupCompleteTest(t)
-	gw.commitRes = paymentmanager.GatewayResult{Outcome: paymentmanager.OutcomeAuthorized, Amount: 1000}
-	_, _ = m.CompleteOnlinePayment(paymentmanager.OnlineReturn{Token: "tok123"}) // settle it
-
-	p, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{AbortToken: "tok123"})
-	if err != nil {
-		t.Errorf("expected no error (idempotent), got %v", err)
-	}
-	if p.Status != paymentmanager.StatusPaid {
-		t.Errorf("expected it to stay PAID")
-	}
-}
-
-func TestComplete_TimeoutOnSettled(t *testing.T) {
-	m, gw, _ := setupCompleteTest(t)
-	gw.commitRes = paymentmanager.GatewayResult{Outcome: paymentmanager.OutcomeAuthorized, Amount: 1000}
-	_, _ = m.CompleteOnlinePayment(paymentmanager.OnlineReturn{Token: "tok123"}) // settle it
-
-	p, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{BuyOrder: "p1"})
-	if err != nil {
-		t.Errorf("expected no error (idempotent), got %v", err)
-	}
-	if p.Status != paymentmanager.StatusPaid {
-		t.Errorf("expected it to stay PAID")
-	}
-}
-
-func TestComplete_RepeatedReturnIsIdempotent(t *testing.T) {
-	m, gw, _ := setupCompleteTest(t)
-	gw.commitRes = paymentmanager.GatewayResult{Outcome: paymentmanager.OutcomeAuthorized, Amount: 1000}
-	_, _ = m.CompleteOnlinePayment(paymentmanager.OnlineReturn{Token: "tok123"}) // settle it
-
-	p, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{Token: "tok123"})
-	if err != nil {
-		t.Errorf("expected no error (idempotent), got %v", err)
-	}
-	if p.Status != paymentmanager.StatusPaid {
-		t.Errorf("expected it to stay PAID")
-	}
+	_, err := newEnv(t).m.CompleteOnlinePayment(pm.OnlineReturn{Token: "nope"})
+	wantErr(t, err, pm.ErrNotFound)
 }
 
 func TestComplete_AbortCancels(t *testing.T) {
-	m, _, _ := setupCompleteTest(t)
-	p, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{AbortToken: "tok123"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if p.Status != paymentmanager.StatusCancelled {
-		t.Errorf("expected CANCELLED, got %v", p.Status)
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	p, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token, AbortToken: token}) // "volver al sitio" trae ambos
+	if err != nil || p.Status != pm.StatusCancelled {
+		t.Fatalf("got %s, %v; want CANCELLED", p.Status, err)
 	}
 }
 
 func TestComplete_TimeoutExpires(t *testing.T) {
-	m, _, _ := setupCompleteTest(t)
-	p, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{BuyOrder: "p1"})
-	if err != nil {
-		t.Fatal(err)
+	e := newEnv(t)
+	e.started(t, "p1", refID)
+	p, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{BuyOrder: "p1"})
+	if err != nil || p.Status != pm.StatusExpired {
+		t.Fatalf("got %s, %v; want EXPIRED", p.Status, err)
 	}
-	if p.Status != paymentmanager.StatusExpired {
-		t.Errorf("expected EXPIRED, got %v", p.Status)
+}
+
+func TestComplete_AbortOnSettled(t *testing.T) {
+	e := newEnv(t)
+	token := e.paidOnline(t, "p1", refID)
+	p, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{AbortToken: token})
+	if err != nil || p.Status != pm.StatusPaid {
+		t.Fatalf("got %s, %v; a settled payment is returned as is", p.Status, err)
+	}
+}
+
+func TestComplete_TimeoutOnSettled(t *testing.T) {
+	e := newEnv(t)
+	e.paidOnline(t, "p1", refID)
+	p, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{BuyOrder: "p1"})
+	if err != nil || p.Status != pm.StatusPaid {
+		t.Fatalf("got %s, %v", p.Status, err)
+	}
+}
+
+func TestComplete_RepeatedReturnIsIdempotent(t *testing.T) {
+	e := newEnv(t)
+	token := e.paidOnline(t, "p1", refID)
+	p, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	if err != nil || p.Status != pm.StatusPaid {
+		t.Fatalf("got %s, %v", p.Status, err)
+	}
+	if n := len(e.pub.events); n != 1 {
+		t.Fatalf("a repeated return must not publish again: %v", e.pub.topics())
 	}
 }
 
 func TestComplete_CommitErrorKeepsPending(t *testing.T) {
-	m, gw, _ := setupCompleteTest(t)
-	gw.commitErr = errors.New("gateway network error")
-
-	_, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{Token: "tok123"})
-	if err != paymentmanager.ErrGatewayFailed {
-		t.Errorf("expected ErrGatewayFailed, got %v", err)
-	}
-
-	p, _ := m.GetPayment(paymentmanager.GetPaymentArgs{TenantId: "t1", Id: "p1"})
-	if p.Status != paymentmanager.StatusPending {
-		t.Errorf("expected to stay PENDING, got %v", p.Status)
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	e.gw.FailNext(errSimulated)
+	_, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	wantErr(t, err, pm.ErrGatewayFailed)
+	if p := e.payment(t, "p1"); p.Status != pm.StatusPending {
+		t.Fatalf("status = %s, want PENDING (reconcile closes it)", p.Status)
 	}
 }
 
 func TestComplete_ApprovedPaysAndPublishes(t *testing.T) {
-	m, gw, pub := setupCompleteTest(t)
-	gw.commitRes = paymentmanager.GatewayResult{
-		Outcome:           paymentmanager.OutcomeAuthorized,
-		Amount:            1000,
-		AuthorizationCode: "1234",
-		PaymentTypeCode:   "VN",
-		Installments:      1,
-		CardLast4:         "6623",
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	e.gw.Approve(token)
+	p, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	if err != nil || p.Status != pm.StatusPaid || p.AuthorizationCode == "" || p.CardLast4 == "" || p.PaymentTypeCode == "" || p.PaidAt == 0 || p.Revision != 2 {
+		t.Fatalf("payment = %+v, %v", p, err)
 	}
-
-	p, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{Token: "tok123"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if p.Status != paymentmanager.StatusPaid {
-		t.Errorf("expected PAID, got %v", p.Status)
-	}
-	if p.AuthorizationCode != "1234" || p.PaymentTypeCode != "VN" || p.Installments != 1 || p.CardLast4 != "6623" {
-		t.Errorf("missing gateway data on payment")
-	}
-	if p.PaidAt == 0 {
-		t.Errorf("expected PaidAt to be set")
-	}
-	if len(pub.events) != 1 {
-		t.Errorf("expected event published")
+	if got := e.pub.topics(); len(got) != 1 || got[0] != pm.EventPaymentPaid {
+		t.Fatalf("events = %v", got)
 	}
 }
 
 func TestComplete_AmountMismatchRefundsAndFails(t *testing.T) {
-	m, gw, _ := setupCompleteTest(t)
-	gw.commitRes = paymentmanager.GatewayResult{Outcome: paymentmanager.OutcomeAuthorized, Amount: 500} // mismatched amount
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	e.gw.Approve(token)
+	e.gw.SetCommitAmount(token, 1000)
+	p, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	wantErr(t, err, pm.ErrAmountMismatch)
+	if p.Status != pm.StatusFailed || e.gw.Refunded(token) != 1000 {
+		t.Fatalf("status %s, refunded %d; want FAILED and 1000 back", p.Status, e.gw.Refunded(token))
+	}
+}
 
-	p, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{Token: "tok123"})
-	if err != paymentmanager.ErrAmountMismatch {
-		t.Errorf("expected ErrAmountMismatch, got %v", err)
-	}
-	if p.Status != paymentmanager.StatusFailed {
-		t.Errorf("expected FAILED, got %v", p.Status)
-	}
-	if gw.refundAmount != 500 {
-		t.Errorf("expected gateway refund to be called with 500, got %v", gw.refundAmount)
+func TestComplete_AmountMismatchRefundFailure(t *testing.T) {
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	e.gw.Approve(token)
+	e.gw.SetCommitAmount(token, 1000)
+	e.hook.refundErr = errSimulated
+	_, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	wantErr(t, err, pm.ErrGatewayFailed)
+	if p := e.payment(t, "p1"); p.Status != pm.StatusPending {
+		t.Fatalf("status = %s: with the refund failed the payment stays PENDING for reconcile", p.Status)
 	}
 }
 
 func TestComplete_RejectedFailsAndPublishes(t *testing.T) {
-	m, gw, pub := setupCompleteTest(t)
-	gw.commitRes = paymentmanager.GatewayResult{Outcome: paymentmanager.OutcomeRejected}
-
-	p, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{Token: "tok123"})
-	if err != nil {
-		t.Fatal(err)
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	e.gw.Reject(token)
+	p, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	if err != nil || p.Status != pm.StatusFailed {
+		t.Fatalf("got %s, %v", p.Status, err)
 	}
-	if p.Status != paymentmanager.StatusFailed {
-		t.Errorf("expected FAILED, got %v", p.Status)
-	}
-	if len(pub.events) != 1 {
-		t.Errorf("expected event published")
+	if got := e.pub.topics(); len(got) != 1 || got[0] != pm.EventPaymentFailed {
+		t.Fatalf("events = %v", got)
 	}
 }
 
 func TestComplete_PendingOutcomeKeepsPending(t *testing.T) {
-	m, gw, _ := setupCompleteTest(t)
-	gw.commitRes = paymentmanager.GatewayResult{Outcome: paymentmanager.OutcomePending}
-
-	p, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{Token: "tok123"})
-	if err != nil {
-		t.Fatal(err)
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	p, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	if err != nil || p.Status != pm.StatusPending {
+		t.Fatalf("got %s, %v", p.Status, err)
 	}
-	if p.Status != paymentmanager.StatusPending {
-		t.Errorf("expected PENDING, got %v", p.Status)
+}
+
+// Otro proceso cierra el pago entre la lectura y la escritura: ErrConflict.
+func TestComplete_ConcurrentCloseConflict(t *testing.T) {
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	e.gw.Approve(token)
+	e.hook.onCommit = func() {
+		if _, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{AbortToken: token}); err != nil {
+			t.Fatalf("concurrent abort: %v", err)
+		}
+	}
+	_, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	wantErr(t, err, pm.ErrConflict)
+}
+
+// Lo que devuelve la pasarela se valida antes de guardarse.
+func TestComplete_InvalidGatewayDataNotStored(t *testing.T) {
+	e := newEnv(t)
+	token := e.started(t, "p1", refID)
+	e.hook.commitResult = &pm.GatewayResult{Outcome: pm.OutcomeAuthorized, Amount: 25000, CardLast4: "1234567890"}
+	if _, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token}); err == nil {
+		t.Fatal("a card_last4 over 4 digits must fail validation")
+	}
+	if p := e.payment(t, "p1"); p.Status != pm.StatusPending || p.CardLast4 != "" {
+		t.Fatalf("nothing stored expected, got %+v", p)
 	}
 }

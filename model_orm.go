@@ -784,3 +784,4 @@ func (s *ReconcileResultList) DecodeFields(_ model.FieldReader) {}
 func (m *ReconcileResult) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
+

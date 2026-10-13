@@ -2,41 +2,30 @@ package tests
 
 import (
 	"testing"
-	paymentmanager "github.com/veltylabs/payment_manager"
+
+	pm "github.com/veltylabs/payment_manager"
 )
 
 func TestTransition_Table(t *testing.T) {
-	tests := []struct {
-		current  string
-		event    string
-		expected string
-	}{
-		{paymentmanager.StatusPending, paymentmanager.EventPay, paymentmanager.StatusPaid},
-		{paymentmanager.StatusPending, paymentmanager.EventFail, paymentmanager.StatusFailed},
-		{paymentmanager.StatusPending, paymentmanager.EventCancel, paymentmanager.StatusCancelled},
-		{paymentmanager.StatusPending, paymentmanager.EventExpire, paymentmanager.StatusExpired},
-		{paymentmanager.StatusPaid, paymentmanager.EventRefundPartial, paymentmanager.StatusPartiallyRefunded},
-		{paymentmanager.StatusPaid, paymentmanager.EventRefundTotal, paymentmanager.StatusRefunded},
-		{paymentmanager.StatusPartiallyRefunded, paymentmanager.EventRefundPartial, paymentmanager.StatusPartiallyRefunded},
-		{paymentmanager.StatusPartiallyRefunded, paymentmanager.EventRefundTotal, paymentmanager.StatusRefunded},
+	cases := []struct{ from, event, to string }{
+		{pm.StatusPending, pm.EventPay, pm.StatusPaid},
+		{pm.StatusPending, pm.EventFail, pm.StatusFailed},
+		{pm.StatusPending, pm.EventCancel, pm.StatusCancelled},
+		{pm.StatusPending, pm.EventExpire, pm.StatusExpired},
+		{pm.StatusPaid, pm.EventRefundPartial, pm.StatusPartiallyRefunded},
+		{pm.StatusPaid, pm.EventRefundTotal, pm.StatusRefunded},
+		{pm.StatusPartiallyRefunded, pm.EventRefundPartial, pm.StatusPartiallyRefunded},
+		{pm.StatusPartiallyRefunded, pm.EventRefundTotal, pm.StatusRefunded},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.current+"_"+tt.event, func(t *testing.T) {
-			got, err := paymentmanager.Transition(tt.current, tt.event)
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
-			if got != tt.expected {
-				t.Errorf("Transition(%q, %q) = %q, want %q", tt.current, tt.event, got, tt.expected)
-			}
-		})
+	for _, c := range cases {
+		got, err := pm.Transition(c.from, c.event)
+		if err != nil || got != c.to {
+			t.Errorf("Transition(%s, %s) = %q, %v; want %q", c.from, c.event, got, err, c.to)
+		}
 	}
 }
 
 func TestTransition_Invalid(t *testing.T) {
-	_, err := paymentmanager.Transition(paymentmanager.StatusPaid, paymentmanager.EventPay)
-	if err != paymentmanager.ErrInvalidTransition {
-		t.Errorf("expected ErrInvalidTransition, got %v", err)
-	}
+	_, err := pm.Transition(pm.StatusRefunded, pm.EventPay)
+	wantErr(t, err, pm.ErrInvalidTransition)
 }
