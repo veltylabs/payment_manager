@@ -3,8 +3,10 @@ PLAN: "feat: payment_manager v0.1.0 — pagos de mesón y online, devoluciones, 
 TAG: v0.1.0
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 12145558634456377497
+PR: https://github.com/veltylabs/payment_manager/pull/1
+REVIEWED_COMMIT: 4b7aa657dc71c58fabb5d9690b7f97159b5ca4ab
 ---
 
 > Este plan se despacha con el flujo CodeJob. Ver skill: agents-workflow.
