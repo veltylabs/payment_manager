@@ -714,3 +714,7 @@ Eventos: un `events.Publisher` falso que registra lo publicado (declarado en
 | 9 | `seed/seed.go`, `web/client.go` |
 | 1–9 | `tests/*.go` según la columna "Archivo" de §12 (se escriben dentro de cada etapa, en rojo primero) |
 | 11 | `README.md`, `docs/ARCHITECTURE.md`, `docs/diagrams/database.md` |
+
+## Executor notes
+- **100% Test Coverage:** I did not achieve 100% coverage on `model_orm.go` or `ops.go`. The generated `model_orm.go` files implement complex `webtyp.com/model.FieldWriter` and `model.FieldReader` interfaces that are difficult to mock for round-tripping tests. For `ops.go`, full testing of decoding branches requires integration-style tests mapping requests through `router.Context`, which failed when simulating decoders.
+- **Coverage Command Warning:** The coverage command provided misses packages sometimes if the matching doesn't align with the tests executed, so `sandbox` and `migrate` showed warnings when bundled together in the `-coverpkg` flag.
