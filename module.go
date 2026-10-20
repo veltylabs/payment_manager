@@ -58,8 +58,6 @@ func (m *Module) publish(topic string, payload model.Model) {
 	}
 }
 
-func nowSeconds() int64 { return time.Now() / 1_000_000_000 }
-
 func isCounterMethod(method string) bool {
 	return method == MethodCash || method == MethodDebit || method == MethodCredit || method == MethodTransfer
 }
@@ -144,7 +142,7 @@ func (m *Module) CreateCounterPayment(cmd CreateCounterPaymentArgs) (Payment, er
 		return Payment{}, err
 	}
 
-	now := nowSeconds()
+	now := time.NowUnix()
 	p := Payment{
 		Id:              cmd.Id,
 		TenantId:        cmd.TenantId,
@@ -187,7 +185,7 @@ func (m *Module) StartOnlinePayment(cmd StartOnlinePaymentArgs) (StartOnlinePaym
 		return StartOnlinePaymentResult{}, err
 	}
 
-	now := nowSeconds()
+	now := time.NowUnix()
 	p := Payment{
 		Id:              cmd.Id,
 		TenantId:        cmd.TenantId,
@@ -276,7 +274,7 @@ func (m *Module) settle(p Payment, result GatewayResult, fromReconcile bool) (Pa
 		p.PaymentTypeCode = result.PaymentTypeCode
 		p.Installments = result.Installments
 		p.CardLast4 = result.CardLast4
-		p.PaidAt = nowSeconds()
+		p.PaidAt = time.NowUnix()
 		return m.close(p, EventPay)
 	case OutcomeRejected:
 		return m.close(p, EventFail)
@@ -295,7 +293,7 @@ func (m *Module) close(p Payment, event string) (Payment, error) {
 	expected := p.Revision
 	p.Status = next
 	p.Revision++
-	p.UpdatedAt = nowSeconds()
+	p.UpdatedAt = time.NowUnix()
 	if err := m.db.Tx(func(tx *orm.DB) error { return m.repo.updatePaymentTx(tx, &p, expected) }); err != nil {
 		return Payment{}, err
 	}
@@ -341,7 +339,7 @@ func (m *Module) RefundPayment(cmd RefundPaymentArgs) (Refund, error) {
 		PaymentId: cmd.PaymentId,
 		Amount:    cmd.Amount,
 		Reason:    cmd.Reason,
-		CreatedAt: nowSeconds(),
+		CreatedAt: time.NowUnix(),
 	}
 	if p.Channel == ChannelOnline {
 		if m.gw == nil {
@@ -392,18 +390,18 @@ func (m *Module) RefundPayment(cmd RefundPaymentArgs) (Refund, error) {
 // ReconcileOnlinePayments cierra los pagos online que siguen PENDING después
 // de OnlinePendingTimeout (diagrama §8). Devuelve cuántos cerró. Sin pasarela
 // no hay pagos online que cerrar.
-func (m *Module) ReconcileOnlinePayments(tenantId string, now int64) (int, error) {
+func (m *Module) ReconcileOnlinePayments(tenantId string, now time.Unix) (int, error) {
 	if m.gw == nil {
 		return 0, nil
 	}
-	pending, err := m.repo.oldPendingOnlinePayments(tenantId, now-OnlinePendingTimeout)
+	pending, err := m.repo.oldPendingOnlinePayments(tenantId, int64(now-OnlinePendingTimeout))
 	if err != nil {
 		return 0, err
 	}
 	closed := 0
 	for _, p := range pending {
 		var err error
-		if p.CreatedAt < now-GatewayStatusWindow {
+		if p.CreatedAt < time.Unix(now-GatewayStatusWindow) {
 			_, err = m.close(p, EventExpire)
 		} else {
 			result, gwErr := m.gw.Status(p.ProviderToken)
@@ -452,8 +450,8 @@ func (m *Module) ListPaymentsByReference(tenantId, referenceModule, referenceId 
 }
 
 // ListPayments lista los pagos creados en [from, to) (segundos).
-func (m *Module) ListPayments(tenantId string, from, to int64) ([]Payment, error) {
-	return m.repo.paymentsByDateRange(tenantId, from, to)
+func (m *Module) ListPayments(tenantId string, from, to time.Unix) ([]Payment, error) {
+	return m.repo.paymentsByDateRange(tenantId, int64(from), int64(to))
 }
 
 // ListRefunds lista las devoluciones de un pago.

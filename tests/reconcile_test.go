@@ -9,12 +9,10 @@ import (
 	pm "github.com/veltylabs/payment_manager"
 )
 
-func nowSec() int64 { return tm.Now() / 1_000_000_000 }
-
 // later es un "ahora" en que el pago ya superó OnlinePendingTimeout.
-func later() int64 { return nowSec() + pm.OnlinePendingTimeout + 1 }
+func later() tm.Unix { return tm.NowUnix() + pm.OnlinePendingTimeout + 1 }
 
-func reconcile(t *testing.T, e *env, now int64) int {
+func reconcile(t *testing.T, e *env, now tm.Unix) int {
 	t.Helper()
 	n, err := e.m.ReconcileOnlinePayments(tenant, now)
 	if err != nil {
@@ -33,7 +31,7 @@ func TestReconcile_RecentPendingUntouched(t *testing.T) {
 	e := newEnv(t)
 	token := e.started(t, "p1", refID)
 	e.gw.Approve(token)
-	if n := reconcile(t, e, nowSec()); n != 0 {
+	if n := reconcile(t, e, tm.NowUnix()); n != 0 {
 		t.Fatalf("closed %d, want 0", n)
 	}
 	if p := e.payment(t, "p1"); p.Status != pm.StatusPending {
@@ -46,7 +44,7 @@ func TestReconcile_OlderThanWindowExpiresWithoutGateway(t *testing.T) {
 	token := e.started(t, "p1", refID)
 	e.gw.Approve(token)
 	e.hook.onStatus = func() { t.Fatal("past the status window the gateway must not be asked") }
-	if n := reconcile(t, e, nowSec()+pm.GatewayStatusWindow+pm.OnlinePendingTimeout+1); n != 1 {
+	if n := reconcile(t, e, tm.NowUnix()+pm.GatewayStatusWindow+pm.OnlinePendingTimeout+1); n != 1 {
 		t.Fatalf("closed %d", n)
 	}
 	if p := e.payment(t, "p1"); p.Status != pm.StatusExpired {

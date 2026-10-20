@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	pm "github.com/veltylabs/payment_manager"
+	tm "webtyp.com/time"
 )
 
 func TestGetPayment(t *testing.T) {
@@ -29,7 +30,7 @@ func TestListPaymentsByReference(t *testing.T) {
 func TestListPayments_DateRange(t *testing.T) {
 	e := newEnv(t)
 	e.paidCounter(t, "p1", refID)
-	now := nowSec()
+	now := tm.NowUnix()
 	in, err := e.m.ListPayments(tenant, now-60, now+60)
 	if err != nil || len(in) != 1 {
 		t.Fatalf("in range: %v, %v", in, err)
