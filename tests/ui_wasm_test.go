@@ -91,16 +91,13 @@ func TestWASM_PaymentStep_CounterRegistersAndCallsOnPaid(t *testing.T) {
 		t.Fatalf("the amount must show: %s", text(root))
 	}
 	buttonByText(t, root, "Debit").Call("click")
-	receipt := root.Call("querySelector", "input[name='receipt']")
-	receipt.Set("value", "B-12")
-	receipt.Call("dispatchEvent", inputEvent())
 	buttonByText(t, root, "Register payment").Call("click")
 
 	if paid != "ui-1" {
 		t.Fatalf("OnPaid = %q, want the generated id ui-1", paid)
 	}
 	p := e.payment(t, "ui-1")
-	if p.Method != pm.MethodDebit || p.ReceiptNumber != "B-12" || p.Status != pm.StatusPaid {
+	if p.Method != pm.MethodDebit || p.ReceiptNumber != "R-000001" || p.Status != pm.StatusPaid {
 		t.Fatalf("payment = %+v", p)
 	}
 }

@@ -81,8 +81,9 @@ func TestReconcile_AuthorizedPays(t *testing.T) {
 	if p := e.payment(t, "p1"); p.Status != pm.StatusPaid {
 		t.Fatalf("status %s", p.Status)
 	}
-	if got := e.pub.topics(); len(got) != 1 || got[0] != pm.EventPaymentPaid {
-		t.Fatalf("events %v", got)
+	topics := e.pub.topics()
+	if len(topics) != 2 || topics[0] != "money.fact" || topics[1] != pm.EventPaymentPaid {
+		t.Fatalf("events %v", topics)
 	}
 }
 

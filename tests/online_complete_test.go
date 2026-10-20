@@ -74,8 +74,9 @@ func TestComplete_RepeatedReturnIsIdempotent(t *testing.T) {
 	if err != nil || p.Status != pm.StatusPaid {
 		t.Fatalf("got %s, %v", p.Status, err)
 	}
-	if n := len(e.pub.events); n != 1 {
-		t.Fatalf("a repeated return must not publish again: %v", e.pub.topics())
+	topics := e.pub.topics()
+	if len(topics) != 2 || topics[0] != "money.fact" || topics[1] != pm.EventPaymentPaid {
+		t.Fatalf("a repeated return must not publish again: %v", topics)
 	}
 }
 
@@ -98,8 +99,9 @@ func TestComplete_ApprovedPaysAndPublishes(t *testing.T) {
 	if err != nil || p.Status != pm.StatusPaid || p.AuthorizationCode == "" || p.CardLast4 == "" || p.PaymentTypeCode == "" || p.PaidAt == 0 || p.Revision != 2 {
 		t.Fatalf("payment = %+v, %v", p, err)
 	}
-	if got := e.pub.topics(); len(got) != 1 || got[0] != pm.EventPaymentPaid {
-		t.Fatalf("events = %v", got)
+	topics := e.pub.topics()
+	if len(topics) != 2 || topics[0] != "money.fact" || topics[1] != pm.EventPaymentPaid {
+		t.Fatalf("events = %v", topics)
 	}
 }
 

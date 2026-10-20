@@ -101,7 +101,14 @@ var CreateCounterPaymentArgsModel = model.Definition{
 		{Name: "reference_module", Type: model.Text(), NotNull: true},
 		{Name: "reference_id", Type: model.Text(), NotNull: true},
 		{Name: "method", Type: input.Radio(), NotNull: true},
-		{Name: "receipt_number", Type: model.Text()},
+	},
+}
+
+var PaymentCounterModel = model.Definition{
+	Name: "payment_counter",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true},
+		{Name: "next_number", Type: model.Int(), NotNull: true},
 	},
 }
 

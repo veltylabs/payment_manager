@@ -374,7 +374,6 @@ type CreateCounterPaymentArgs struct {
 	ReferenceModule string
 	ReferenceId     string
 	Method          string
-	ReceiptNumber   string
 }
 
 func (m *CreateCounterPaymentArgs) ModelName() string { return "create_counter_payment_args" }
@@ -384,7 +383,7 @@ func (m *CreateCounterPaymentArgs) Schema() []model.Field {
 }
 
 func (m *CreateCounterPaymentArgs) Pointers() []any {
-	return []any{&m.TenantId, &m.Id, &m.ReferenceModule, &m.ReferenceId, &m.Method, &m.ReceiptNumber}
+	return []any{&m.TenantId, &m.Id, &m.ReferenceModule, &m.ReferenceId, &m.Method}
 }
 
 func (m *CreateCounterPaymentArgs) IsNil() bool { return m == nil }
@@ -395,7 +394,6 @@ func (m *CreateCounterPaymentArgs) EncodeFields(w model.FieldWriter) {
 	w.String("reference_module", m.ReferenceModule)
 	w.String("reference_id", m.ReferenceId)
 	w.String("method", m.Method)
-	w.String("receipt_number", m.ReceiptNumber)
 }
 
 func (m *CreateCounterPaymentArgs) DecodeFields(r model.FieldReader) {
@@ -414,9 +412,6 @@ func (m *CreateCounterPaymentArgs) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("method"); ok {
 		m.Method = v
 	}
-	if v, ok := r.String("receipt_number"); ok {
-		m.ReceiptNumber = v
-	}
 }
 
 type CreateCounterPaymentArgsList []*CreateCounterPaymentArgs
@@ -434,6 +429,75 @@ func (s *CreateCounterPaymentArgsList) DecodeFields(_ model.FieldReader) {}
 
 func (m *CreateCounterPaymentArgs) Validate(action byte) error {
 	return model.ValidateFields(action, m)
+}
+
+type PaymentCounter struct {
+	TenantId   string
+	NextNumber int64
+}
+
+func (m *PaymentCounter) ModelName() string { return "payment_counter" }
+
+func (m *PaymentCounter) Schema() []model.Field { return PaymentCounterModel.Fields }
+
+func (m *PaymentCounter) Pointers() []any { return []any{&m.TenantId, &m.NextNumber} }
+
+func (m *PaymentCounter) IsNil() bool { return m == nil }
+
+func (m *PaymentCounter) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", m.TenantId)
+	w.Int("next_number", m.NextNumber)
+}
+
+func (m *PaymentCounter) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("tenant_id"); ok {
+		m.TenantId = v
+	}
+	if v, ok := r.Int("next_number"); ok {
+		m.NextNumber = v
+	}
+}
+
+type PaymentCounterList []*PaymentCounter
+
+func (s *PaymentCounterList) Len() int               { return len(*s) }
+func (s *PaymentCounterList) At(i int) model.Fielder { return (*s)[i] }
+func (s *PaymentCounterList) Append() model.Fielder {
+	v := &PaymentCounter{}
+	*s = append(*s, v)
+	return v
+}
+func (s *PaymentCounterList) IsNil() bool                      { return s == nil }
+func (s *PaymentCounterList) EncodeFields(_ model.FieldWriter) {}
+func (s *PaymentCounterList) DecodeFields(_ model.FieldReader) {}
+
+func (m *PaymentCounter) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+var PaymentCounter_ = struct {
+	TenantId   string
+	NextNumber string
+}{
+	TenantId:   "tenant_id",
+	NextNumber: "next_number",
+}
+
+func ReadOnePaymentCounter(qb *orm.QB, model *PaymentCounter) (*PaymentCounter, error) {
+	err := qb.ReadOne()
+	if err != nil {
+		return nil, err
+	}
+	return model, nil
+}
+
+func ReadAllPaymentCounter(qb *orm.QB) (PaymentCounterList, error) {
+	var results PaymentCounterList
+	err := qb.ReadAll(
+		func() model.Model { return &PaymentCounter{} },
+		func(m model.Model) { results = append(results, m.(*PaymentCounter)) },
+	)
+	return results, err
 }
 
 type StartOnlinePaymentArgs struct {

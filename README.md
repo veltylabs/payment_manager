@@ -16,7 +16,7 @@ webtyp
 | Op | Descripción | Require |
 |---|---|---|
 | `get_charge` | Consulta el valor a pagar y su moneda | `payment_online`, `Read` |
-| `create_counter_payment` | Registra un pago de mesón | `payment`, `Create` |
+| `create_counter_payment` | Registra un pago de mesón (genera un número de recibo secuencial) | `payment`, `Create` |
 | `start_online_payment` | Inicia flujo webpay | `payment_online`, `Create` |
 | `get_payment_status` | Estado actual de un pago | `payment_online`, `Read` |
 | `get_payment` | Obtiene un pago (limpio de token) | `payment`, `Read` |
@@ -53,6 +53,10 @@ pm, err := paymentmanager.New(db, paymentmanager.Deps{
 - El esquema lo crea `migrate.Migrate(conn, compiler)` desde el `cmd/migrate` de la app.
 - La app corre `reconcile_online_payments` cada minuto.
 - `ui.PaymentStep` es el paso de cobro que incrustan otras pantallas; `ui.Browser` es la pantalla Pagos; `ui.TakeReturn` lee la vuelta de la pasarela.
+
+## Economic facts
+
+Este módulo publica [hechos económicos](https://github.com/webtyp/money) (`money.Fact`) usando la dependencia `webtyp.com/money`. Cuando un pago es completado exitosamente o una devolución es registrada, se publican hechos `Charged` y `Refunded` (respectivamente) sobre el `events.Publisher` configurado en `Deps.Publisher`. El `Scope` corresponde al módulo que pidió el cobro (`ReferenceModule`). La contabilidad y seguimiento de caja quedan fuera de `payment_manager` y se realizan en otro lado suscribiéndose a estos hechos (`money.Subscribe`).
 
 ## Archivos clave
 

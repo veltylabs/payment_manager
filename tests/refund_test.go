@@ -129,11 +129,13 @@ func TestRefund_PublishesRefunded(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := e.pub.topics()
-	if len(got) != 2 || got[1] != pm.EventPaymentRefunded {
+	// paidCounter published: money.fact, EventPaymentPaid
+	// RefundPayment published: money.fact, EventPaymentRefunded
+	if len(got) != 4 || got[3] != pm.EventPaymentRefunded || got[2] != "money.fact" {
 		t.Fatalf("events = %v", got)
 	}
-	if _, ok := e.pub.events[1].Payload.(*pm.Refund); !ok {
-		t.Fatalf("payment.refunded carries a *Refund, got %T", e.pub.events[1].Payload)
+	if _, ok := e.pub.events[3].Payload.(*pm.Refund); !ok {
+		t.Errorf("payload type %T", e.pub.events[3].Payload)
 	}
 }
 
