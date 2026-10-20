@@ -16,7 +16,6 @@ func (s *PaymentStep) RenderCSS() *css.Stylesheet {
 		Part(PartAmount, style.FontSize(style.TextLg), style.FontWeight(style.WeightBold)).
 		Part(PartError, style.As(style.DangerWash), style.FontSize(style.TextSm)).
 		Part(PartBody, style.Stack(style.Space3)).
-		Part(PartReceipt, style.Stack(style.Space1)).
 		Part(PartInput, style.As(style.Field), style.Round(style.RadiusMd), style.PadInline(style.Space3), style.ControlBox()).
 		Part(PartActions, style.Row(style.Space2)).
 		Part(PartPay, style.Button(style.Primary)).

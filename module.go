@@ -1,9 +1,12 @@
 package paymentmanager
 
 import (
+	"sync"
+
 	"webtyp.com/events"
 	"webtyp.com/fmt"
 	"webtyp.com/model"
+	"webtyp.com/money"
 	"webtyp.com/orm"
 	"webtyp.com/time"
 )
@@ -26,12 +29,13 @@ type Deps struct {
 
 // Module registra, confirma y devuelve pagos.
 type Module struct {
-	db      *orm.DB
-	repo    *repository
-	pub     events.Publisher
-	gw      Gateway
-	retURL  string
-	charges []ChargeSource
+	db        *orm.DB
+	repo      *repository
+	pub       events.Publisher
+	gw        Gateway
+	retURL    string
+	charges   []ChargeSource
+	receiptMu sync.Mutex
 }
 
 // New conecta el módulo a un *orm.DB ya migrado (ver el subpaquete migrate).
@@ -142,6 +146,11 @@ func (m *Module) CreateCounterPayment(cmd CreateCounterPaymentArgs) (Payment, er
 		return Payment{}, err
 	}
 
+	receiptNumber, err := m.NextReceiptNumber(cmd.TenantId)
+	if err != nil {
+		return Payment{}, err
+	}
+
 	now := time.NowUnix()
 	p := Payment{
 		Id:              cmd.Id,
@@ -153,7 +162,7 @@ func (m *Module) CreateCounterPayment(cmd CreateCounterPaymentArgs) (Payment, er
 		Amount:          amount,
 		Currency:        currency,
 		Status:          StatusPaid,
-		ReceiptNumber:   cmd.ReceiptNumber,
+		ReceiptNumber:   receiptNumber,
 		CreatedAt:       now,
 		PaidAt:          now,
 		UpdatedAt:       now,
@@ -161,6 +170,11 @@ func (m *Module) CreateCounterPayment(cmd CreateCounterPaymentArgs) (Payment, er
 	}
 	if err := m.create(&p); err != nil {
 		return Payment{}, err
+	}
+	if m.pub != nil {
+		if err := money.Publish(m.pub, paymentFact(p)); err != nil {
+			return Payment{}, err
+		}
 	}
 	m.publish(EventPaymentPaid, &p)
 	return p, nil
@@ -299,6 +313,11 @@ func (m *Module) close(p Payment, event string) (Payment, error) {
 	}
 	switch next {
 	case StatusPaid:
+		if m.pub != nil {
+			if err := money.Publish(m.pub, paymentFact(p)); err != nil {
+				return Payment{}, err
+			}
+		}
 		m.publish(EventPaymentPaid, &p)
 	case StatusFailed:
 		m.publish(EventPaymentFailed, &p)
@@ -382,6 +401,11 @@ func (m *Module) RefundPayment(cmd RefundPaymentArgs) (Refund, error) {
 	})
 	if err != nil {
 		return Refund{}, err
+	}
+	if m.pub != nil {
+		if err := money.Publish(m.pub, refundFact(p, ref)); err != nil {
+			return Refund{}, err
+		}
 	}
 	m.publish(EventPaymentRefunded, &ref)
 	return ref, nil

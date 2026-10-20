@@ -34,7 +34,7 @@ func TestModels_RoundTripAndValidate(t *testing.T) {
 		CreatedBy: "u", CreatedAt: 1, PaidAt: 2, UpdatedAt: 3, Revision: 4}, &pm.Payment{})
 	roundTrip(t, "refund", &pm.Refund{Id: "f1", TenantId: tenant, PaymentId: "p1", Amount: 5, Kind: pm.RefundKindManual, Method: pm.MethodCash,
 		Reason: "r", AuthorizationCode: "A", CreatedBy: "u", CreatedAt: 1}, &pm.Refund{})
-	roundTrip(t, "create_counter_payment_args", &pm.CreateCounterPaymentArgs{TenantId: tenant, Id: "p1", ReferenceModule: refModule, ReferenceId: refID, Method: pm.MethodCash, ReceiptNumber: "R"}, &pm.CreateCounterPaymentArgs{})
+	roundTrip(t, "create_counter_payment_args", &pm.CreateCounterPaymentArgs{TenantId: tenant, Id: "p1", ReferenceModule: refModule, ReferenceId: refID, Method: pm.MethodCash}, &pm.CreateCounterPaymentArgs{})
 	roundTrip(t, "start_online_payment_args", &pm.StartOnlinePaymentArgs{TenantId: tenant, Id: "p1", ReferenceModule: refModule, ReferenceId: refID, ReturnTo: "x"}, &pm.StartOnlinePaymentArgs{})
 	roundTrip(t, "start_online_payment_result", &pm.StartOnlinePaymentResult{PaymentId: "p1", RedirectUrl: "u", Token: "t"}, &pm.StartOnlinePaymentResult{})
 	roundTrip(t, "get_payment_args", &pm.GetPaymentArgs{TenantId: tenant, Id: "p1"}, &pm.GetPaymentArgs{})

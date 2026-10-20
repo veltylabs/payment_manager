@@ -34,7 +34,7 @@ func TestMigrate_SyncsTables(t *testing.T) {
 			tables = append(tables, q)
 		}
 	}
-	if len(tables) != 2 || tables[0] != pm.PaymentModel.Name || tables[1] != pm.RefundModel.Name {
-		t.Fatalf("tables = %v, want payment then refund", tables)
+	if len(tables) != 3 || tables[0] != pm.PaymentModel.Name || tables[1] != pm.RefundModel.Name || tables[2] != pm.PaymentCounterModel.Name {
+		t.Fatalf("tables = %v, want payment, refund, payment_counter", tables)
 	}
 }

@@ -21,7 +21,6 @@ const (
 	PartAmount  = widget.Part("amount")
 	PartError   = widget.Part("error")
 	PartBody    = widget.Part("body")
-	PartReceipt = widget.Part("receipt")
 	PartPay     = widget.Part("pay")
 	PartActions = widget.Part("actions") // fila del botón: alineado al inicio, como el resto del formulario
 	PartInput   = widget.Part("input")
@@ -32,7 +31,6 @@ var (
 	clsStepAmount  = NamePaymentStep.Class(PartAmount)
 	clsStepError   = NamePaymentStep.Class(PartError)
 	clsStepBody    = NamePaymentStep.Class(PartBody)
-	clsStepReceipt = NamePaymentStep.Class(PartReceipt)
 	clsStepPay     = NamePaymentStep.Class(PartPay)
 	clsStepActions = NamePaymentStep.Class(PartActions)
 	clsStepInput   = NamePaymentStep.Class(PartInput)
@@ -46,7 +44,6 @@ const (
 	textDebit         lang.Text = "Debit"
 	textCredit        lang.Text = "Credit"
 	textTransfer      lang.Text = "Transfer"
-	textReceiptNumber lang.Text = "Receipt number"
 	textRegisterPay   lang.Text = "Register payment"
 	textPayWithWebpay lang.Text = "Pay with Webpay"
 )
@@ -74,7 +71,6 @@ type PaymentStep struct {
 	body    *SignalNodes
 	busy    *SignalBool
 	method  string
-	receipt *SignalString
 }
 
 func (s *PaymentStep) WidgetName() widget.Name { return NamePaymentStep }
@@ -89,7 +85,6 @@ func (s *PaymentStep) Init(_ Ctx) {
 	s.errMsg = NewString("")
 	s.body = NewNodes()
 	s.busy = NewBool(false)
-	s.receipt = NewString("")
 	s.method = paymentmanager.MethodCash
 	s.loadCharge()
 }
@@ -122,7 +117,7 @@ func (s *PaymentStep) loadCharge() {
 				s.body.Set([]*Element{s.payButton(textPayWithWebpay, s.startOnline)})
 				return
 			}
-			s.body.Set([]*Element{s.methodPicker(), s.receiptField(), s.payButton(textRegisterPay, s.registerCounter)})
+			s.body.Set([]*Element{s.methodPicker(), s.payButton(textRegisterPay, s.registerCounter)})
 		})
 }
 
@@ -138,12 +133,6 @@ func (s *PaymentStep) methodPicker() *Element {
 		OnChange: func(v string) { s.method = v },
 	}
 	return picker.Render()
-}
-
-func (s *PaymentStep) receiptField() *Element {
-	return Label().Set(clsStepReceipt.AsAttr()).
-		Text(lang.Translate(textReceiptNumber).String()).
-		Child(Input("text").Set(clsStepInput.AsAttr()).Attr("name", "receipt").Bind(s.receipt))
 }
 
 func (s *PaymentStep) payButton(label lang.Text, run func()) *Element {
@@ -170,7 +159,6 @@ func (s *PaymentStep) registerCounter() {
 		ReferenceModule: s.ReferenceModule,
 		ReferenceId:     s.ReferenceID,
 		Method:          s.method,
-		ReceiptNumber:   s.receipt.Get(),
 	}
 	s.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpCreateCounterPayment, args, out, func(err error) {
 		s.busy.Set(false)
