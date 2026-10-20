@@ -4,11 +4,12 @@ import (
 	"webtyp.com/lang"
 	"webtyp.com/model"
 	"webtyp.com/router"
+	"webtyp.com/time"
 	"webtyp.com/view"
 )
 
 // ListWindowSeconds es cuánto hacia atrás muestra la lista de pagos: 30 días.
-const ListWindowSeconds = 30 * 86400
+const ListWindowSeconds = 30 * time.Day
 
 const titlePayments = "Payments"
 
@@ -33,10 +34,10 @@ type paymentLister struct {
 }
 
 func (l *paymentLister) List(done func([]model.Model, error)) {
-	now := nowSeconds()
+	now := time.NowUnix()
 	out := &PaymentList{}
 	l.caller.Call(ModelName+"."+OpListPayments,
-		&ListPaymentsArgs{TenantId: l.tenantId, From: now - ListWindowSeconds, To: now + 1}, out,
+		&ListPaymentsArgs{TenantId: l.tenantId, From: int64(now - ListWindowSeconds), To: int64(now + 1)}, out,
 		func(err error) {
 			if err != nil {
 				done(nil, err)

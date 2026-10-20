@@ -70,9 +70,9 @@ var PaymentModel = model.Definition{
 		{Name: "receipt_number", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Maximum: 40}},
 		{Name: "return_to", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'_', '-'}, Maximum: 60}},
 		{Name: "created_by", Type: model.Text(), OmitEmpty: true},
-		{Name: "created_at", Type: model.Int()},
-		{Name: "paid_at", Type: model.Int(), OmitEmpty: true},
-		{Name: "updated_at", Type: model.Int()},
+		{Name: "created_at", Type: model.UnixTime()},
+		{Name: "paid_at", Type: model.UnixTime(), OmitEmpty: true},
+		{Name: "updated_at", Type: model.UnixTime()},
 		{Name: "revision", Type: model.Int()},
 	},
 }
@@ -89,7 +89,7 @@ var RefundModel = model.Definition{
 		{Name: "reason", Type: input.Textarea(), NotNull: true, Permitted: model.Permitted{Maximum: 255}},
 		{Name: "authorization_code", Type: model.Text(), OmitEmpty: true},
 		{Name: "created_by", Type: model.Text(), OmitEmpty: true},
-		{Name: "created_at", Type: model.Int()},
+		{Name: "created_at", Type: model.UnixTime()},
 	},
 }
 

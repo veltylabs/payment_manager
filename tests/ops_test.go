@@ -12,6 +12,7 @@ import (
 	"webtyp.com/storage"
 
 	pm "github.com/veltylabs/payment_manager"
+	tm "webtyp.com/time"
 )
 
 // opRouter monta el módulo en un router/mock con una identidad que tiene todos
@@ -115,7 +116,7 @@ func TestOps_HappyPaths(t *testing.T) {
 	if st, body := call(r, pm.OpListPaymentsByReference, encode(t, &pm.ListPaymentsByReferenceArgs{TenantId: tenant, ReferenceModule: refModule, ReferenceId: refID})); st != 200 || !fmt.Contains(body, `"p1"`) {
 		t.Errorf("list_payments_by_reference: %d %s", st, body)
 	}
-	if st, body := call(r, pm.OpListPayments, encode(t, &pm.ListPaymentsArgs{TenantId: tenant, From: 1, To: nowSec() + 60})); st != 200 || !fmt.Contains(body, `"p2"`) {
+	if st, body := call(r, pm.OpListPayments, encode(t, &pm.ListPaymentsArgs{TenantId: tenant, From: 1, To: int64(tm.NowUnix()) + 60})); st != 200 || !fmt.Contains(body, `"p2"`) {
 		t.Errorf("list_payments: %d %s", st, body)
 	}
 	f := refundArgs("f1", "p1", 100)
@@ -137,7 +138,7 @@ func TestOps_NoProviderTokenInResponses(t *testing.T) {
 	for _, c := range []struct{ op, body string }{
 		{pm.OpGetPayment, encode(t, &pm.GetPaymentArgs{TenantId: tenant, Id: "p1"})},
 		{pm.OpListPaymentsByReference, encode(t, &pm.ListPaymentsByReferenceArgs{TenantId: tenant, ReferenceModule: refModule, ReferenceId: refID})},
-		{pm.OpListPayments, encode(t, &pm.ListPaymentsArgs{TenantId: tenant, From: 1, To: nowSec() + 60})},
+		{pm.OpListPayments, encode(t, &pm.ListPaymentsArgs{TenantId: tenant, From: 1, To: int64(tm.NowUnix()) + 60})},
 	} {
 		st, body := call(r, c.op, c.body)
 		if st != 200 || fmt.Contains(body, "provider_token") || fmt.Contains(body, "sbx-") {

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	pm "github.com/veltylabs/payment_manager"
+	tm "webtyp.com/time"
 )
 
 func TestTenant_ReadsRefundsAndReconcileAreScoped(t *testing.T) {
@@ -17,7 +18,7 @@ func TestTenant_ReadsRefundsAndReconcileAreScoped(t *testing.T) {
 	if list, _ := e.m.ListPaymentsByReference("t2", refModule, refID); len(list) != 0 {
 		t.Errorf("ListPaymentsByReference from t2: %v", list)
 	}
-	if list, _ := e.m.ListPayments("t2", 0, nowSec()+60); len(list) != 0 {
+	if list, _ := e.m.ListPayments("t2", 0, tm.NowUnix()+60); len(list) != 0 {
 		t.Errorf("ListPayments from t2: %v", list)
 	}
 	a := refundArgs("f1", "p1", 100)

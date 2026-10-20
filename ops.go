@@ -3,6 +3,7 @@ package paymentmanager
 import (
 	"webtyp.com/model"
 	"webtyp.com/router"
+	"webtyp.com/time"
 )
 
 // Operaciones del módulo; en el cable van como "payment_manager.<op>".
@@ -186,7 +187,7 @@ func (m *Module) opListPayments(ctx router.Context) {
 	if !decode(ctx, &a, model.ActionRead) {
 		return
 	}
-	list, err := m.ListPayments(a.TenantId, a.From, a.To)
+	list, err := m.ListPayments(a.TenantId, time.Unix(a.From), time.Unix(a.To))
 	if err != nil {
 		writeError(ctx, err)
 		return
@@ -229,7 +230,7 @@ func (m *Module) opReconcileOnlinePayments(ctx router.Context) {
 	if !decode(ctx, &a, model.ActionUpdate) {
 		return
 	}
-	closed, err := m.ReconcileOnlinePayments(a.TenantId, nowSeconds())
+	closed, err := m.ReconcileOnlinePayments(a.TenantId, time.NowUnix())
 	if err != nil {
 		writeError(ctx, err)
 		return
