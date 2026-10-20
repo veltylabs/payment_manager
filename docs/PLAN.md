@@ -2,8 +2,10 @@
 PLAN: "feat(money): auto-generated receipt numbers and publish economic facts to webtyp.com/money"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 4223631125565401932
+PR: https://github.com/veltylabs/payment_manager/pull/3
+REVIEWED_COMMIT: 03718bf96a7b58cd08c2ee844043f1b35a560a69
 ---
 
 > Read AGENTS.md at the repo root before any change. This plan is complete: do not guess; if something does not fit, stop and ask in the PR.
