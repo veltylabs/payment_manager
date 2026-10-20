@@ -2,8 +2,10 @@
 PLAN: "refactor: typed instants of webtyp/time v0.6 in payment_manager — every instant field is time.Unix or time.Nano, no unit arithmetic"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 8424523456009152078
+PR: https://github.com/veltylabs/payment_manager/pull/2
+REVIEWED_COMMIT: 015b550b034a31d20e7a3730be51d53a82bf739b
 ---
 
 > Read AGENTS.md at the repo root before any change. This plan is complete: do not guess; if something does not fit, stop and ask in the PR.
