@@ -19,7 +19,7 @@ require (
 	webtyp.com/orm v0.12.9
 	webtyp.com/router v0.4.3
 	webtyp.com/storage v0.1.8
-	webtyp.com/svg v0.3.28
+	webtyp.com/svg v0.3.30
 	webtyp.com/time v0.6.2
 	webtyp.com/unixid v0.3.1
 	webtyp.com/view v0.6.27
