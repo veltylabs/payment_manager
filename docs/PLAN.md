@@ -2,8 +2,10 @@
 PLAN: "refactor!: build destinations — web/browser.go and ui/browser.go with //go:build browser"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 9886713861479132384
+PR: https://github.com/veltylabs/payment_manager/pull/4
+REVIEWED_COMMIT: 2c46d7bd38ef30851c54070647695666aad82858
 ---
 
 > Read AGENTS.md at the repo root before any change.
