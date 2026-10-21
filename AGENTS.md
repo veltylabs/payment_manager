@@ -197,7 +197,7 @@ exempt, and only them:
 - `seed/` (package `seed`, no build tag) holds demo data: `Load(...) (Data, error)`, which writes
   through the module's own methods so every row is validated, and returns the rows it created so
   downstream demos can reference them.
-- `web/` (package `main`, `web/client.go` tagged `wasm`) is the runnable demo — run `webtyp` at the
+- `web/` (package `main`, `web/browser.go` tagged `wasm`) is the runnable demo — run `webtyp` at the
   repository root — and may additionally import the concrete `webtyp.com/storage/mem`,
   `webtyp.com/router/loopback`, `webtyp.com/events/mock`, `webtyp.com/unixid` and
   `webtyp.com/auth/trusted_ip` (for `ValidateRUT`).
