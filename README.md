@@ -24,7 +24,9 @@ webtyp
 | `list_payments` | Lista pagos | `payment`, `Read` |
 | `refund_payment` | Realiza una devolución parcial o total | `refund`, `Create` |
 | `list_refunds` | Devoluciones de un pago | `refund`, `Read` |
-| `reconcile_online_payments` | Cierra pagos online perdidos | `payment`, `Update` |
+| `start_terminal_payment` | Inicia cobro en máquina | `payment`, `Create` |
+| `refresh_terminal_payment` | Refresca el estado en la máquina | `payment`, `Update` |
+| `reconcile_payments` | Cierra pagos online y de máquina pendientes | `payment`, `Update` |
 
 ## Estados
 
@@ -33,7 +35,7 @@ webtyp
 | `PENDING` | Pago online iniciado, esperando respuesta de pasarela |
 | `PAID` | Pago completado y acreditado |
 | `FAILED` | Pago rechazado por la pasarela |
-| `CANCELLED` | El cliente abortó o canceló el flujo webpay |
+| `CANCELLED` | El cliente abortó o canceló el flujo webpay, o cancelado en la máquina |
 | `EXPIRED` | El pago webpay no fue completado a tiempo |
 | `PARTIALLY_REFUNDED` | Se devolvió parte del monto, pero queda saldo |
 | `REFUNDED` | Devolución total del monto |
@@ -42,16 +44,18 @@ webtyp
 
 ```go
 gw, _ := transbank.Open(env.Get(transbank.EnvWebpay)) // github.com/veltylabs/transbank
+pos := tuu.NewTerminal()
 pm, err := paymentmanager.New(db, paymentmanager.Deps{
 	Publisher: broker,
 	Gateway:   gw,
+	Terminal:  pos,
 	ReturnURL: publicURL + transbank.ReturnPath,
-	Charges:   []paymentmanager.ChargeSource{{Module: "appointment_booking", Reader: bookingModule}},
+	Charges:   []paymentmanager.ChargeSource{{Module: "appointment_booking", Reader: bookingModule, Device: "POS-12345"}},
 })
 ```
 
 - El esquema lo crea `migrate.Migrate(conn, compiler)` desde el `cmd/migrate` de la app.
-- La app corre `reconcile_online_payments` cada minuto.
+- La app corre `reconcile_payments` cada minuto.
 - `ui.PaymentStep` es el paso de cobro que incrustan otras pantallas; `ui.Browser` es la pantalla Pagos; `ui.TakeReturn` lee la vuelta de la pasarela.
 
 ## Economic facts

@@ -9,14 +9,14 @@ import (
 	pm "github.com/veltylabs/payment_manager"
 )
 
-// later es un "ahora" en que el pago ya superó OnlinePendingTimeout.
-func later() tm.Unix { return tm.NowUnix() + pm.OnlinePendingTimeout + 1 }
+// later es un "ahora" en que el pago ya superó PendingTimeout.
+func later() tm.Unix { return tm.NowUnix() + pm.PendingTimeout + 1 }
 
 func reconcile(t *testing.T, e *env, now tm.Unix) int {
 	t.Helper()
-	n, err := e.m.ReconcileOnlinePayments(tenant, now)
+	n, err := e.m.ReconcilePayments(tenant, now)
 	if err != nil {
-		t.Fatalf("ReconcileOnlinePayments: %v", err)
+		t.Fatalf("ReconcilePayments: %v", err)
 	}
 	return n
 }
@@ -44,7 +44,7 @@ func TestReconcile_OlderThanWindowExpiresWithoutGateway(t *testing.T) {
 	token := e.started(t, "p1", refID)
 	e.gw.Approve(token)
 	e.hook.onStatus = func() { t.Fatal("past the status window the gateway must not be asked") }
-	if n := reconcile(t, e, tm.NowUnix()+pm.GatewayStatusWindow+pm.OnlinePendingTimeout+1); n != 1 {
+	if n := reconcile(t, e, tm.NowUnix()+pm.GatewayStatusWindow+pm.PendingTimeout+1); n != 1 {
 		t.Fatalf("closed %d", n)
 	}
 	if p := e.payment(t, "p1"); p.Status != pm.StatusExpired {
@@ -149,7 +149,7 @@ func TestReconcile_ConflictSkips(t *testing.T) {
 func TestReconcile_ListErrorReturned(t *testing.T) {
 	e := newEnv(t)
 	e.conn.failOn("payment", storage.ActionReadAll, 0)
-	if _, err := e.m.ReconcileOnlinePayments(tenant, later()); err != errSimulated {
+	if _, err := e.m.ReconcilePayments(tenant, later()); err != errSimulated {
 		t.Fatalf("err = %v", err)
 	}
 }
@@ -158,7 +158,30 @@ func TestReconcile_UpdateErrorReturned(t *testing.T) {
 	e := newEnv(t)
 	e.started(t, "p1", refID)
 	e.conn.failOn("payment", storage.ActionUpdate, 0)
-	if _, err := e.m.ReconcileOnlinePayments(tenant, later()); err != errSimulated {
+	if _, err := e.m.ReconcilePayments(tenant, later()); err != errSimulated {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestReconcile_TerminalAuthorizedPays(t *testing.T) {
+	e := newEnvTerminal(t)
+	token := startTerminal(t, e, "p1")
+	e.term.Approve(token)
+	if n := reconcile(t, e, tm.NowUnix() + pm.PendingTimeout + 1); n != 1 {
+		t.Fatalf("closed %d", n)
+	}
+	if p := e.payment(t, "p1"); p.Status != pm.StatusPaid {
+		t.Fatalf("status %s", p.Status)
+	}
+}
+
+func TestReconcile_TerminalExpiredWindow(t *testing.T) {
+	e := newEnvTerminal(t)
+	startTerminal(t, e, "p1")
+	if n := reconcile(t, e, tm.NowUnix() + pm.GatewayStatusWindow + pm.PendingTimeout + 1); n != 1 {
+		t.Fatalf("closed %d", n)
+	}
+	if p := e.payment(t, "p1"); p.Status != pm.StatusExpired {
+		t.Fatalf("status %s, want EXPIRED", p.Status)
 	}
 }

@@ -26,7 +26,7 @@ func TestTenant_ReadsRefundsAndReconcileAreScoped(t *testing.T) {
 	if _, err := e.m.RefundPayment(a); err != pm.ErrNotFound {
 		t.Errorf("RefundPayment from t2: %v", err)
 	}
-	if n, _ := e.m.ReconcileOnlinePayments("t2", later()); n != 0 {
+	if n, _ := e.m.ReconcilePayments("t2", later()); n != 0 {
 		t.Errorf("Reconcile from t2 closed %d", n)
 	}
 	if p := e.payment(t, "p2"); p.Status != pm.StatusPending {

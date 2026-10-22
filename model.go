@@ -8,8 +8,9 @@ import (
 const ModelName = "payment_manager"
 
 const (
-	ChannelCounter = "counter"
-	ChannelOnline  = "online"
+	ChannelCounter  = "counter"
+	ChannelOnline   = "online"
+	ChannelTerminal = "terminal" // cobro en caja empujado a la máquina de tarjeta
 )
 
 const (
@@ -43,8 +44,8 @@ const (
 
 // Tiempos (segundos).
 const (
-	OnlinePendingTimeout = 600       // un pago online PENDING más viejo que esto se concilia
-	GatewayStatusWindow  = 7 * 86400 // la pasarela guarda el estado 7 días
+	PendingTimeout      = 600       // un pago PENDING (online o máquina) más viejo que esto se concilia
+	GatewayStatusWindow = 7 * 86400 // la pasarela guarda el estado 7 días
 )
 
 var PaymentModel = model.Definition{
@@ -61,6 +62,7 @@ var PaymentModel = model.Definition{
 		{Name: "status", Type: model.Text(), NotNull: true},
 		{Name: "refunded_amount", Type: model.Int()},
 		{Name: "provider_token", Type: model.Text(), OmitEmpty: true},
+		{Name: "provider", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'_', '-'}, Maximum: 30}},
 		// Lo que devuelve la pasarela se valida antes de guardarse: código de
 		// autorización hasta 6 caracteres (Webpay) y últimos 4 dígitos de la tarjeta.
 		{Name: "authorization_code", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Letters: true, Numbers: true, Maximum: 6}},
@@ -164,6 +166,18 @@ var ChargeResultModel = model.Definition{
 		{Name: "amount", Type: model.Int()},
 		{Name: "currency", Type: model.Text()},
 		{Name: "payable", Type: model.Bool()},
+		{Name: "terminal", Type: model.Bool()},
+	},
+}
+
+var StartTerminalPaymentArgsModel = model.Definition{
+	Name: "start_terminal_payment_args",
+	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text(), NotNull: true},
+		{Name: "id", Type: model.Text(), NotNull: true},
+		{Name: "reference_module", Type: model.Text(), NotNull: true},
+		{Name: "reference_id", Type: model.Text(), NotNull: true},
+		{Name: "method", Type: input.Radio(), NotNull: true}, // MethodDebit | MethodCredit
 	},
 }
 
@@ -205,8 +219,8 @@ var ListRefundsArgsModel = model.Definition{
 	},
 }
 
-var ReconcileOnlinePaymentsArgsModel = model.Definition{
-	Name: "reconcile_online_payments_args",
+var ReconcilePaymentsArgsModel = model.Definition{
+	Name: "reconcile_payments_args",
 	Fields: model.Fields{
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
 	},

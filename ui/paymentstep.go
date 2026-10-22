@@ -6,6 +6,7 @@ import (
 	"webtyp.com/lang"
 	"webtyp.com/model"
 	"webtyp.com/router"
+	"webtyp.com/time"
 	"webtyp.com/widget"
 
 	. "webtyp.com/dom"
@@ -46,7 +47,10 @@ const (
 	textTransfer      lang.Text = "Transfer"
 	textRegisterPay   lang.Text = "Register payment"
 	textPayWithWebpay lang.Text = "Pay with Webpay"
+	textWaitingCard   lang.Text = "Waiting for the card on the machine…"
 )
+
+const terminalPollMillis = 3000
 
 // FieldToken es el campo del formulario con que la pasarela recibe el token.
 const FieldToken = "token_ws"
@@ -66,8 +70,9 @@ type PaymentStep struct {
 	ReturnTo        string                 // online: id de la pantalla (hash) a la que se vuelve
 	OnPaid          func(paymentID string) // mesón: después de registrar el pago
 
-	amount  *SignalString
-	errMsg  *SignalString
+	terminal bool
+	amount   *SignalString
+	errMsg   *SignalString
 	body    *SignalNodes
 	busy    *SignalBool
 	method  string
@@ -112,6 +117,7 @@ func (s *PaymentStep) loadCharge() {
 				s.amount.Set(lang.Translate(textNothingToPay).String())
 				return
 			}
+			s.terminal = out.Terminal
 			s.amount.Set(paymentmanager.FormatAmount(out.Amount, out.Currency))
 			if s.Channel == paymentmanager.ChannelOnline {
 				s.body.Set([]*Element{s.payButton(textPayWithWebpay, s.startOnline)})
@@ -152,6 +158,10 @@ func (s *PaymentStep) payButton(label lang.Text, run func()) *Element {
 }
 
 func (s *PaymentStep) registerCounter() {
+	if s.terminal && (s.method == paymentmanager.MethodDebit || s.method == paymentmanager.MethodCredit) {
+		s.startTerminal()
+		return
+	}
 	out := &paymentmanager.Payment{}
 	args := &paymentmanager.CreateCounterPaymentArgs{
 		TenantId:        s.TenantID,
@@ -169,6 +179,44 @@ func (s *PaymentStep) registerCounter() {
 		if s.OnPaid != nil {
 			s.OnPaid(out.Id)
 		}
+	})
+}
+
+func (s *PaymentStep) startTerminal() {
+	out := &paymentmanager.Payment{}
+	args := &paymentmanager.StartTerminalPaymentArgs{TenantId: s.TenantID, Id: s.IDs.NewID(), ReferenceModule: s.ReferenceModule, ReferenceId: s.ReferenceID, Method: s.method}
+	s.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpStartTerminalPayment, args, out, func(err error) {
+		if err != nil {
+			s.busy.Set(false)
+			s.errMsg.Set(err.Error())
+			return
+		}
+		s.amount.Set(lang.Translate(textWaitingCard).String())
+		s.pollTerminal(out.Id)
+	})
+}
+
+// pollTerminal consulta la máquina cada terminalPollMillis hasta que el pago deja de estar PENDING.
+func (s *PaymentStep) pollTerminal(id string) {
+	time.AfterFunc(terminalPollMillis, func() {
+		out := &paymentmanager.Payment{}
+		s.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpRefreshTerminalPayment, &paymentmanager.GetPaymentArgs{TenantId: s.TenantID, Id: id}, out, func(err error) {
+			switch {
+			case err != nil:
+				s.busy.Set(false)
+				s.errMsg.Set(err.Error())
+			case out.Status == paymentmanager.StatusPending:
+				s.pollTerminal(id)
+			case out.Status == paymentmanager.StatusPaid:
+				s.busy.Set(false)
+				if s.OnPaid != nil {
+					s.OnPaid(out.Id)
+				}
+			default: // FAILED, CANCELLED, EXPIRED
+				s.busy.Set(false)
+				s.errMsg.Set(lang.Translate(lang.Text(out.Status)).String())
+			}
+		})
 	})
 }
 

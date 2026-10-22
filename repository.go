@@ -56,10 +56,10 @@ func (r *repository) paymentsByDateRange(tenantId string, from, to int64) ([]Pay
 		Where(Payment_.CreatedAt).Lt(to))
 }
 
-func (r *repository) oldPendingOnlinePayments(tenantId string, before int64) ([]Payment, error) {
+func (r *repository) oldPendingPayments(tenantId string, channel string, before int64) ([]Payment, error) {
 	return readAllPayments(r.db.Query(&Payment{}).
 		Where(Payment_.TenantId).Eq(tenantId).
-		Where(Payment_.Channel).Eq(ChannelOnline).
+		Where(Payment_.Channel).Eq(channel).
 		Where(Payment_.Status).Eq(StatusPending).
 		Where(Payment_.CreatedAt).Lt(before))
 }

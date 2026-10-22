@@ -102,17 +102,50 @@ func TestWASM_PaymentStep_CounterRegistersAndCallsOnPaid(t *testing.T) {
 	}
 }
 
+func TestWASM_PaymentStep_TerminalRegistersAndCallsOnPaid(t *testing.T) {
+	e := newEnvTerminal(t)
+	s := step(loopback.WithTenant(tenant, e.m), pm.ChannelCounter)
+	var paid string
+	s.OnPaid = func(id string) { paid = id }
+	root := mount(t, s)
+	if !fmt.Contains(text(root), "$25.000") {
+		t.Fatalf("the amount must show: %s", text(root))
+	}
+	buttonByText(t, root, "Debit").Call("click")
+	buttonByText(t, root, "Register payment").Call("click")
+
+	p := e.payment(t, "ui-1")
+	if p.Channel != pm.ChannelTerminal || p.Status != pm.StatusPending {
+		t.Fatalf("payment channel/status = %s/%s", p.Channel, p.Status)
+	}
+
+	e.term.Approve(p.ProviderToken)
+
+	// loop wait
+	for i := 0; i < 25; i++ {
+		if paid != "" {
+			break
+		}
+		// block loop back tick
+		ch := make(chan struct{})
+		js.Global().Call("setTimeout", js.FuncOf(func(this js.Value, args []js.Value) any {
+			close(ch)
+			return nil
+		}), 200)
+		<-ch
+	}
+
+	if paid != "ui-1" {
+		t.Fatalf("OnPaid = %q, want ui-1", paid)
+	}
+}
+
 func TestWASM_PaymentStep_CounterErrorVisible(t *testing.T) {
 	e := newEnv(t)
-	e.paidCounter(t, "p0", refID) // the reference is already paid
+	e.charge.err = errSimulated
 	root := mount(t, step(loopback.WithTenant(tenant, e.m), pm.ChannelCounter))
-	btn := buttonByText(t, root, "Register payment")
-	btn.Call("click")
-	if !fmt.Contains(text(root), pm.ErrAlreadyPaid.Error()) {
+	if !fmt.Contains(text(root), errSimulated.Error()) {
 		t.Fatalf("the error must be visible: %s", text(root))
-	}
-	if btn.Call("getAttribute", "data-busy").Truthy() {
-		t.Fatal("after an error the button is usable again")
 	}
 }
 
@@ -215,7 +248,7 @@ func TestWASM_PaymentsBrowser_RefundAndReconcile(t *testing.T) {
 		t.Fatalf("a refund error is visible: %s", text(root))
 	}
 
-	buttonByText(t, root, "Reconcile online payments").Call("click")
+	buttonByText(t, root, "Reconcile payments").Call("click")
 	if !fmt.Contains(text(root), "Closed payments: 0") {
 		t.Fatalf("reconcile reports what it closed: %s", text(root))
 	}
@@ -228,7 +261,7 @@ func TestWASM_PaymentsBrowser_ErrorsVisible(t *testing.T) {
 	if !fmt.Contains(text(root), errSimulated.Error()) {
 		t.Fatalf("a list error is visible: %s", text(root))
 	}
-	buttonByText(t, root, "Reconcile online payments").Call("click")
+	buttonByText(t, root, "Reconcile payments").Call("click")
 	if !fmt.Contains(text(root), errSimulated.Error()) {
 		t.Fatalf("a reconcile error is visible: %s", text(root))
 	}

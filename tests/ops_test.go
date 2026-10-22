@@ -65,7 +65,9 @@ func TestOps_RequiresTable(t *testing.T) {
 		{pm.OpListPayments, pm.ResourcePayment, model.Read},
 		{pm.OpRefundPayment, pm.ResourceRefund, model.Create},
 		{pm.OpListRefunds, pm.ResourceRefund, model.Read},
-		{pm.OpReconcileOnlinePayments, pm.ResourcePayment, model.Update},
+		{pm.OpStartTerminalPayment, pm.ResourcePayment, model.Create},
+		{pm.OpRefreshTerminalPayment, pm.ResourcePayment, model.Update},
+		{pm.OpReconcilePayments, pm.ResourcePayment, model.Update},
 	}
 	routes := r.Routes()
 	if len(routes) != len(want) {
@@ -126,8 +128,8 @@ func TestOps_HappyPaths(t *testing.T) {
 	if st, body := call(r, pm.OpListRefunds, encode(t, &pm.ListRefundsArgs{TenantId: tenant, PaymentId: "p1"})); st != 200 || !fmt.Contains(body, `"f1"`) {
 		t.Errorf("list_refunds: %d %s", st, body)
 	}
-	if st, body := call(r, pm.OpReconcileOnlinePayments, encode(t, &pm.ReconcileOnlinePaymentsArgs{TenantId: tenant})); st != 200 || !fmt.Contains(body, "closed") {
-		t.Errorf("reconcile_online_payments: %d %s", st, body)
+	if st, body := call(r, pm.OpReconcilePayments, encode(t, &pm.ReconcilePaymentsArgs{TenantId: tenant})); st != 200 || !fmt.Contains(body, "closed") {
+		t.Errorf("reconcile_payments: %d %s", st, body)
 	}
 }
 
@@ -164,7 +166,7 @@ func TestOps_PaymentStatusShape(t *testing.T) {
 func TestOps_BadBodyAndInvalidArgs(t *testing.T) {
 	r := opRouter(newEnv(t))
 	ops := []string{pm.OpGetCharge, pm.OpCreateCounterPayment, pm.OpStartOnlinePayment, pm.OpGetPaymentStatus, pm.OpGetPayment,
-		pm.OpListPaymentsByReference, pm.OpListPayments, pm.OpRefundPayment, pm.OpListRefunds, pm.OpReconcileOnlinePayments}
+		pm.OpListPaymentsByReference, pm.OpListPayments, pm.OpRefundPayment, pm.OpListRefunds, pm.OpStartTerminalPayment, pm.OpRefreshTerminalPayment, pm.OpReconcilePayments}
 	for _, op := range ops {
 		if st, _ := call(r, op, `{`); st != 400 {
 			t.Errorf("%s with a broken body: %d, want 400", op, st)
@@ -201,7 +203,7 @@ func TestOps_ErrorStatusTable(t *testing.T) {
 	for _, c := range []struct{ op, body string }{
 		{pm.OpListPaymentsByReference, encode(t, &pm.ListPaymentsByReferenceArgs{TenantId: tenant, ReferenceModule: refModule, ReferenceId: refID})},
 		{pm.OpListPayments, encode(t, &pm.ListPaymentsArgs{TenantId: tenant, From: 1, To: 2})},
-		{pm.OpReconcileOnlinePayments, encode(t, &pm.ReconcileOnlinePaymentsArgs{TenantId: tenant})},
+		{pm.OpReconcilePayments, encode(t, &pm.ReconcilePaymentsArgs{TenantId: tenant})},
 	} {
 		if st, _ := call(r, c.op, c.body); st != 500 {
 			t.Errorf("%s with a storage error: %d, want 500", c.op, st)
