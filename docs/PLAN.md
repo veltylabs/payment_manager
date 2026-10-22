@@ -3,6 +3,8 @@ PLAN: "feat!: card payouts — deposit date and processor fee per payment; facts
 TAG: v0.4.0
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 12361960052788271007
 ---
 
 > Read AGENTS.md at the repo root before any change.
