@@ -49,7 +49,6 @@ pm, err := paymentmanager.New(db, paymentmanager.Deps{
 	Publisher: broker,
 	Gateway:   gw,
 	Terminal:  pos,
-	ReturnURL: publicURL + transbank.ReturnPath,
 	Charges:   []paymentmanager.ChargeSource{{Module: "appointment_booking", Reader: bookingModule, Device: "POS-12345"}},
 })
 ```

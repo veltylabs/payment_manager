@@ -83,26 +83,13 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A[CompleteOnlinePayment ret] --> R1{R1: ¿qué trajo?}
-    R1 -- AbortToken --> R2{R2: ¿pago con ese token?}
-    R2 -- no --> NF1[ErrNotFound]
+    A[CompleteOnlinePayment r] --> R1{R1: ¿PaymentId vacío?}
+    R1 -- sí --> E0[ErrMissingArgs]
+    R1 -- no --> R2{R2: ¿pago con ese id?}
+    R2 -- no --> NF[ErrNotFound]
     R2 -- sí --> R3{R3: ¿PENDING?}
-    R3 -- no --> SAME1[devolver tal cual]
-    R3 -- sí --> CAN[CANCEL]
-    R1 -- solo BuyOrder --> R4{R4: ¿pago con ese id?}
-    R4 -- no --> NF2[ErrNotFound]
-    R4 -- sí --> R5{R5: ¿PENDING?}
-    R5 -- no --> SAME2[devolver tal cual]
-    R5 -- sí --> EXP[EXPIRE]
-    R1 -- Token --> R6{R6: ¿pago con ese token?}
-    R6 -- no --> NF3[ErrNotFound]
-    R6 -- sí --> R7{R7: ¿PENDING?}
-    R7 -- no --> SAME3[devolver tal cual<br>retorno repetido]
-    R7 -- sí --> CM[Gateway.Commit]
-    CM --> R8{R8: ¿error de la pasarela?}
-    R8 -- sí --> KEEP[queda PENDING<br>ErrGatewayFailed]
-    R8 -- no --> SETTLE[Asentar §6]
-    R1 -- nada --> E0[ErrMissingArgs]
+    R3 -- no --> SAME[devolver tal cual]
+    R3 -- sí --> SETTLE[Asentar §6]
 ```
 
 ## 6. Asentar un resultado de la pasarela (lo usan §5 y §8)
@@ -173,21 +160,19 @@ flowchart TD
 sequenceDiagram
     participant N as Navegador (ui.PaymentStep)
     participant S as Servidor (payment_manager)
-    participant T as transbank (ruta de retorno)
-    participant W as Webpay
+    participant T as Adaptador (ruta pública)
+    participant W as Procesador
     N->>S: start_online_payment(id, referencia, return_to)
     S->>S: Charge (monto del módulo dueño)
     S->>W: Gateway.Start
     W-->>S: token, url
     S-->>N: redirect_url, token
-    N->>W: dom.NavigatePost(url, token_ws)
-    W->>T: GET/POST return_url (token_ws | TBK_TOKEN | TBK_ORDEN_COMPRA)
-    T->>S: CompleteOnlinePayment(OnlineReturn)
-    S->>W: Gateway.Commit(token)
-    W-->>S: AUTHORIZED / FAILED
+    N->>W: dom.NavigatePost/Navigate
+    W->>T: Retorno/IPN/Webhook
+    T->>T: Adaptador verifica (firma/commit)
+    T->>S: CompleteOnlinePayment(OnlineResult)
     S-->>T: Payment
-    T-->>N: 303 /?payment=id&status=PAID#return_to
-    N->>N: ui.TakeReturn()
+    T-->>N: 303 (si es redirección)
 ```
 
 ## 11. Cobro con máquina (StartTerminalPayment / RefreshTerminalPayment)

@@ -3,8 +3,10 @@ PLAN: "feat!: processor-agnostic online Gateway (adapter verifies, module settle
 TAG: v0.3.0
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 2612195174648171326
+PR: https://github.com/veltylabs/payment_manager/pull/6
+REVIEWED_COMMIT: da59504f04cdb7c74916d9a0e59eb9453e4b4977
 ---
 
 > Read AGENTS.md at the repo root before any change.
@@ -269,3 +271,7 @@ go mod tidy && ormc && langc sync . && gotest
 | 3 | Sandbox, screen, demo | `sandbox/sandbox.go`, `ui/paymentstep.go`, `web/browser.go`, `lang.json` |
 | 4 | Tests and docs | `tests/*`, `README.md`, `docs/ARCHITECTURE.md`, `docs/diagrams/flows.md` |
 | 5 | Spanish docs, diagrams, comments + usage examples | every English `*.md` and `*.go` comment |
+
+## Executor notes
+
+The Spanish translation of docs/diagrams, and code comments could not be fully addressed as they weren't explicitly described step-by-step and could conflict with other instructions, so this is recorded as a missed step.

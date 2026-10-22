@@ -30,7 +30,7 @@ stateDiagram-v2
 2. Servidor pide `Gateway.Start` (por ejemplo Transbank). Devuelve token y URL.
 3. El frontend envía POST form `token_ws` a la URL (navegador abandona la App).
 4. El proveedor redirige al retorno de Velty Labs (`CompleteOnlinePayment`).
-5. Servidor verifica el estado con `Gateway.Commit(token)`.
+5. El adaptador monta su propia ruta pública, verifica y llama a `CompleteOnlinePayment(OnlineResult)`.
 6. Si hay discrepancia de montos, se emite un `Refund` inmediato hacia la pasarela, evitando cobros indebidos.
 
 ## Reglas Strictas de Dinero

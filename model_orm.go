@@ -393,13 +393,16 @@ type StartOnlinePaymentArgs struct {
 	ReferenceModule string
 	ReferenceId string
 	ReturnTo string
+	PayerName string
+	PayerEmail string
+	PayerPhone string
 }
 
 func (m *StartOnlinePaymentArgs) ModelName() string { return "start_online_payment_args" }
 
 func (m *StartOnlinePaymentArgs) Schema() []model.Field { return StartOnlinePaymentArgsModel.Fields }
 
-func (m *StartOnlinePaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.ReferenceModule, &m.ReferenceId, &m.ReturnTo} }
+func (m *StartOnlinePaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.ReferenceModule, &m.ReferenceId, &m.ReturnTo, &m.PayerName, &m.PayerEmail, &m.PayerPhone} }
 
 func (m *StartOnlinePaymentArgs) IsNil() bool { return m == nil }
 
@@ -409,6 +412,9 @@ func (m *StartOnlinePaymentArgs) EncodeFields(w model.FieldWriter) {
 	w.String("reference_module", m.ReferenceModule)
 	w.String("reference_id", m.ReferenceId)
 	w.String("return_to", m.ReturnTo)
+	w.String("payer_name", m.PayerName)
+	w.String("payer_email", m.PayerEmail)
+	w.String("payer_phone", m.PayerPhone)
 }
 
 func (m *StartOnlinePaymentArgs) DecodeFields(r model.FieldReader) {
@@ -417,6 +423,9 @@ func (m *StartOnlinePaymentArgs) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("reference_module"); ok { m.ReferenceModule = v }
 	if v, ok := r.String("reference_id"); ok { m.ReferenceId = v }
 	if v, ok := r.String("return_to"); ok { m.ReturnTo = v }
+	if v, ok := r.String("payer_name"); ok { m.PayerName = v }
+	if v, ok := r.String("payer_email"); ok { m.PayerEmail = v }
+	if v, ok := r.String("payer_phone"); ok { m.PayerPhone = v }
 }
 
 type StartOnlinePaymentArgsList []*StartOnlinePaymentArgs
@@ -436,13 +445,14 @@ type StartOnlinePaymentResult struct {
 	PaymentId string
 	RedirectUrl string
 	Token string
+	TokenField string
 }
 
 func (m *StartOnlinePaymentResult) ModelName() string { return "start_online_payment_result" }
 
 func (m *StartOnlinePaymentResult) Schema() []model.Field { return StartOnlinePaymentResultModel.Fields }
 
-func (m *StartOnlinePaymentResult) Pointers() []any { return []any{&m.PaymentId, &m.RedirectUrl, &m.Token} }
+func (m *StartOnlinePaymentResult) Pointers() []any { return []any{&m.PaymentId, &m.RedirectUrl, &m.Token, &m.TokenField} }
 
 func (m *StartOnlinePaymentResult) IsNil() bool { return m == nil }
 
@@ -450,12 +460,14 @@ func (m *StartOnlinePaymentResult) EncodeFields(w model.FieldWriter) {
 	w.String("payment_id", m.PaymentId)
 	w.String("redirect_url", m.RedirectUrl)
 	w.String("token", m.Token)
+	w.String("token_field", m.TokenField)
 }
 
 func (m *StartOnlinePaymentResult) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("payment_id"); ok { m.PaymentId = v }
 	if v, ok := r.String("redirect_url"); ok { m.RedirectUrl = v }
 	if v, ok := r.String("token"); ok { m.Token = v }
+	if v, ok := r.String("token_field"); ok { m.TokenField = v }
 }
 
 type StartOnlinePaymentResultList []*StartOnlinePaymentResult

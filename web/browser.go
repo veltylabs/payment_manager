@@ -45,7 +45,6 @@ func main() {
 	pm, err := paymentmanager.New(orm.New(mem.New()), paymentmanager.Deps{
 		Publisher: &mock.Broker{},
 		Gateway:   sandbox.New("/"),
-		ReturnURL: "/",
 		Charges:   []paymentmanager.ChargeSource{{Module: demoModule, Reader: demoCharges{}}},
 	})
 	if err != nil {

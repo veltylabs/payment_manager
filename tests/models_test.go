@@ -29,7 +29,7 @@ func roundTrip(t *testing.T, name string, v model.Encodable, fresh model.Decodab
 
 func TestModels_RoundTripAndValidate(t *testing.T) {
 	roundTrip(t, "payment", &pm.Payment{Id: "p1", TenantId: tenant, ReferenceModule: refModule, ReferenceId: refID, Channel: pm.ChannelOnline,
-		Method: pm.MethodWebpay, Amount: 25000, Currency: pm.CurrencyCLP, Status: pm.StatusPaid, RefundedAmount: 10, ProviderToken: "tok",
+		Method: pm.MethodCard, Amount: 25000, Currency: pm.CurrencyCLP, Status: pm.StatusPaid, RefundedAmount: 10, ProviderToken: "tok",
 		AuthorizationCode: "A1", PaymentTypeCode: "VD", Installments: 3, CardLast4: "1234", ReceiptNumber: "R", ReturnTo: "x",
 		CreatedBy: "u", CreatedAt: 1, PaidAt: 2, UpdatedAt: 3, Revision: 4}, &pm.Payment{})
 	roundTrip(t, "refund", &pm.Refund{Id: "f1", TenantId: tenant, PaymentId: "p1", Amount: 5, Kind: pm.RefundKindManual, Method: pm.MethodCash,

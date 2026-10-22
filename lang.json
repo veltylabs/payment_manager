@@ -15,7 +15,7 @@
     "PAID": ["Pagado"],
     "PARTIALLY_REFUNDED": ["Devuelto en parte"],
     "PENDING": ["Pendiente"],
-    "Pay with Webpay": ["Pagar con Webpay"],
+    "Pay online": ["Pagar en línea"],
     "Payments": ["Pagos"],
     "REFUNDED": ["Devuelto"],
     "Reason": ["Motivo"],
@@ -43,6 +43,9 @@
     "next number": [""],
     "paid at": [""],
     "payable": [""],
+    "payer email": [""],
+    "payer name": [""],
+    "payer phone": [""],
     "payment id": [""],
     "payment type code": [""],
     "payment_manager: Deps.Charges is required": [""],
@@ -64,6 +67,7 @@
     "terminal": [""],
     "to": [""],
     "token": [""],
+    "token field": [""],
     "updated at": [""],
     "webpay": ["Webpay"]
   }

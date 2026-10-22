@@ -152,7 +152,7 @@ func TestWASM_PaymentStep_CounterErrorVisible(t *testing.T) {
 func TestWASM_PaymentStep_OnlineErrorVisible(t *testing.T) {
 	e := newEnvNoGateway(t)
 	root := mount(t, step(loopback.WithTenant(tenant, e.m), pm.ChannelOnline))
-	buttonByText(t, root, "Pay with Webpay").Call("click")
+	buttonByText(t, root, "Pay online").Call("click")
 	if !fmt.Contains(text(root), pm.ErrGatewayUnavailable.Error()) {
 		t.Fatalf("the error must be visible: %s", text(root))
 	}
@@ -165,14 +165,14 @@ func TestWASM_PaymentStep_OnlineNavigatesPost(t *testing.T) {
 	var action, token string
 	fake := js.FuncOf(func(this js.Value, _ []js.Value) any {
 		action = this.Get("action").String()
-		token = this.Call("querySelector", "input[name='"+ui.FieldToken+"']").Get("value").String()
+		token = this.Call("querySelector", "input[name='"+"token_ws"+"']").Get("value").String()
 		return nil
 	})
 	proto.Set("submit", fake)
 	defer func() { proto.Set("submit", original); fake.Release() }()
 
 	root := mount(t, step(loopback.WithTenant(tenant, e.m), pm.ChannelOnline))
-	buttonByText(t, root, "Pay with Webpay").Call("click")
+	buttonByText(t, root, "Pay online").Call("click")
 
 	if action != "https://webpay.example/pay" || !fmt.HasPrefix(token, "sbx-") {
 		t.Fatalf("POST to %q with token %q", action, token)
