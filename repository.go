@@ -37,11 +37,6 @@ func (r *repository) paymentAnyTenant(id string) (Payment, error) {
 	return readOnePayment(r.db.Query(p).Where(Payment_.Id).Eq(id), p)
 }
 
-func (r *repository) paymentByProviderToken(token string) (Payment, error) {
-	p := &Payment{}
-	return readOnePayment(r.db.Query(p).Where(Payment_.ProviderToken).Eq(token), p)
-}
-
 func (r *repository) paymentsByReference(tenantId, refModule, refId string) ([]Payment, error) {
 	return readAllPayments(r.db.Query(&Payment{}).
 		Where(Payment_.TenantId).Eq(tenantId).

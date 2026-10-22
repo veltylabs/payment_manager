@@ -23,7 +23,6 @@ const (
 type Deps struct {
 	Publisher events.Publisher // opcional — nil desactiva la publicación
 	Gateway   Gateway          // opcional — nil: el canal online responde ErrGatewayUnavailable
-	ReturnURL string           // requerido con Gateway: URL absoluta de la ruta de retorno
 	Charges   []ChargeSource   // requerido: quién responde el monto de cada módulo de referencia
 	Terminal  Terminal         // opcional — nil: el cobro con máquina responde ErrTerminalUnavailable
 }
@@ -45,9 +44,7 @@ func New(db *orm.DB, deps Deps) (*Module, error) {
 	if len(deps.Charges) == 0 {
 		return nil, fmt.Err("payment_manager: Deps.Charges is required")
 	}
-	if deps.Gateway != nil && deps.ReturnURL == "" {
-		return nil, fmt.Err("payment_manager: Deps.ReturnURL is required with a Gateway")
-	}
+
 	for _, c := range deps.Charges {
 		if c.Device != "" && deps.Terminal == nil {
 			return nil, fmt.Err("payment_manager: Deps.Terminal is required when a ChargeSource names a Device")
@@ -58,7 +55,6 @@ func New(db *orm.DB, deps Deps) (*Module, error) {
 		repo:    &repository{db: db},
 		pub:     deps.Publisher,
 		gw:      deps.Gateway,
-		retURL:  deps.ReturnURL,
 		charges: deps.Charges,
 		term:    deps.Terminal,
 	}, nil
@@ -222,7 +218,7 @@ func (m *Module) StartOnlinePayment(cmd StartOnlinePaymentArgs) (StartOnlinePaym
 		ReferenceModule: cmd.ReferenceModule,
 		ReferenceId:     cmd.ReferenceId,
 		Channel:         ChannelOnline,
-		Method:          MethodWebpay,
+		Method:          MethodCard,
 		Amount:          amount,
 		Currency:        currency,
 		Status:          StatusPending,
@@ -231,7 +227,12 @@ func (m *Module) StartOnlinePayment(cmd StartOnlinePaymentArgs) (StartOnlinePaym
 		UpdatedAt:       now,
 		Revision:        1,
 	}
-	started, gwErr := m.gw.Start(GatewayStart{BuyOrder: p.Id, SessionId: p.Id, Amount: amount, Currency: currency, ReturnURL: m.retURL})
+	started, gwErr := m.gw.Start(GatewayStart{
+		PaymentId: p.Id,
+		Amount:    amount,
+		Currency:  currency,
+		Payer:     Payer{Name: cmd.PayerName, Email: cmd.PayerEmail, Phone: cmd.PayerPhone},
+	})
 	if gwErr != nil {
 		p.Status = StatusFailed
 		if err := m.create(&p); err != nil {
@@ -244,7 +245,7 @@ func (m *Module) StartOnlinePayment(cmd StartOnlinePaymentArgs) (StartOnlinePaym
 	if err := m.create(&p); err != nil {
 		return StartOnlinePaymentResult{}, err
 	}
-	return StartOnlinePaymentResult{PaymentId: p.Id, RedirectUrl: started.RedirectURL, Token: started.Token}, nil
+	return StartOnlinePaymentResult{PaymentId: p.Id, RedirectUrl: started.RedirectURL, Token: started.Token, TokenField: started.TokenField}, nil
 }
 
 // StartTerminalPayment crea el pago PENDING y envía el monto a la máquina de la caja del módulo de la
@@ -356,43 +357,23 @@ func (m *Module) settleTerminal(p Payment, res TerminalResult, fromReconcile boo
 	return p, nil
 }
 
-// CompleteOnlinePayment termina un pago online con lo que devolvió la
-// pasarela (ver OnlineReturn). Es idempotente: un pago que ya no está PENDING
-// se devuelve tal cual.
-func (m *Module) CompleteOnlinePayment(ret OnlineReturn) (Payment, error) {
+// CompleteOnlinePayment asienta el resultado que el adaptador ya verificó. Es idempotente: un pago que ya no
+// está PENDING se devuelve tal cual.
+func (m *Module) CompleteOnlinePayment(r OnlineResult) (Payment, error) {
 	if m.gw == nil {
 		return Payment{}, ErrGatewayUnavailable
 	}
-	var p Payment
-	var err error
-	switch {
-	case ret.AbortToken != "":
-		p, err = m.repo.paymentByProviderToken(ret.AbortToken)
-	case ret.Token != "":
-		p, err = m.repo.paymentByProviderToken(ret.Token)
-	case ret.BuyOrder != "":
-		p, err = m.repo.paymentAnyTenant(ret.BuyOrder)
-	default:
+	if r.PaymentId == "" {
 		return Payment{}, ErrMissingArgs
 	}
+	p, err := m.repo.paymentAnyTenant(r.PaymentId)
 	if err != nil {
 		return Payment{}, err
 	}
 	if p.Status != StatusPending {
 		return p, nil
 	}
-
-	switch {
-	case ret.AbortToken != "":
-		return m.close(p, EventCancel)
-	case ret.Token == "":
-		return m.close(p, EventExpire)
-	}
-	result, gwErr := m.gw.Commit(ret.Token)
-	if gwErr != nil {
-		return p, ErrGatewayFailed
-	}
-	return m.settle(p, result, false)
+	return m.settle(p, r.Result, false)
 }
 
 // settle asienta un resultado de la pasarela (diagrama §6). fromReconcile
@@ -418,6 +399,10 @@ func (m *Module) settle(p Payment, result GatewayResult, fromReconcile bool) (Pa
 		return m.close(p, EventPay)
 	case OutcomeRejected:
 		return m.close(p, EventFail)
+	case OutcomeCancelled:
+		return m.close(p, EventCancel)
+	case OutcomeExpired:
+		return m.close(p, EventExpire)
 	}
 	if fromReconcile {
 		return m.close(p, EventExpire)

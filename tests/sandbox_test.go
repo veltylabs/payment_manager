@@ -9,7 +9,7 @@ import (
 
 func TestSandbox_Start(t *testing.T) {
 	g := sandbox.New("https://pay.example")
-	s, err := g.Start(pm.GatewayStart{BuyOrder: "b1", Amount: 100})
+	s, err := g.Start(pm.GatewayStart{PaymentId: "b1", Amount: 100})
 	if err != nil || s.Token != sandbox.TokenPrefix+"b1" || s.RedirectURL != "https://pay.example" {
 		t.Fatalf("Start = %+v, %v", s, err)
 	}
@@ -21,14 +21,14 @@ func TestSandbox_Start(t *testing.T) {
 
 func TestSandbox_ApproveAndReject(t *testing.T) {
 	g := sandbox.New("/")
-	s, _ := g.Start(pm.GatewayStart{BuyOrder: "b1", Amount: 100})
+	s, _ := g.Start(pm.GatewayStart{PaymentId: "b1", Amount: 100})
 	g.Approve(s.Token)
-	if r, _ := g.Commit(s.Token); r.Outcome != pm.OutcomeAuthorized || r.AuthorizationCode != sandbox.AuthorizationCode || r.CardLast4 == "" {
-		t.Fatalf("approved = %+v", r)
+	if res, _ := g.Result(s.Token); res.Result.Outcome != pm.OutcomeAuthorized || res.Result.AuthorizationCode != sandbox.AuthorizationCode || res.Result.CardLast4 == "" {
+		t.Fatalf("approved = %+v", res)
 	}
 	g.Reject(s.Token)
-	if r, _ := g.Commit(s.Token); r.Outcome != pm.OutcomeRejected {
-		t.Fatalf("rejected = %+v", r)
+	if res, _ := g.Result(s.Token); res.Result.Outcome != pm.OutcomeRejected {
+		t.Fatalf("rejected = %+v", res)
 	}
 	g.Approve("unknown") // a no-op, not a panic
 }
@@ -36,15 +36,15 @@ func TestSandbox_ApproveAndReject(t *testing.T) {
 func TestSandbox_FailNext(t *testing.T) {
 	g := sandbox.New("/")
 	g.FailNext(errSimulated)
-	if _, err := g.Start(pm.GatewayStart{BuyOrder: "b1"}); err != errSimulated {
+	if _, err := g.Start(pm.GatewayStart{PaymentId: "b1"}); err != errSimulated {
 		t.Fatalf("Start err = %v", err)
 	}
-	s, err := g.Start(pm.GatewayStart{BuyOrder: "b1", Amount: 10})
+	s, err := g.Start(pm.GatewayStart{PaymentId: "b1", Amount: 10})
 	if err != nil {
 		t.Fatalf("the failure applies to one call only: %v", err)
 	}
 	g.FailNext(errSimulated)
-	if _, err := g.Commit(s.Token); err != errSimulated {
+	if _, err := g.Result(s.Token); err != errSimulated {
 		t.Fatalf("Commit err = %v", err)
 	}
 	g.FailNext(errSimulated)
@@ -55,20 +55,20 @@ func TestSandbox_FailNext(t *testing.T) {
 
 func TestSandbox_SetCommitAmount(t *testing.T) {
 	g := sandbox.New("/")
-	s, _ := g.Start(pm.GatewayStart{BuyOrder: "b1", Amount: 100})
+	s, _ := g.Start(pm.GatewayStart{PaymentId: "b1", Amount: 100})
 	g.SetCommitAmount(s.Token, 7)
-	if r, _ := g.Commit(s.Token); r.Amount != 7 {
-		t.Fatalf("amount = %d", r.Amount)
+	if res, _ := g.Result(s.Token); res.Result.Amount != 7 {
+		t.Fatalf("amount = %d", res.Result.Amount)
 	}
 }
 
 func TestSandbox_RefundTotalThenPartial(t *testing.T) {
 	g := sandbox.New("/")
-	s, _ := g.Start(pm.GatewayStart{BuyOrder: "b1", Amount: 100})
+	s, _ := g.Start(pm.GatewayStart{PaymentId: "b1", Amount: 100})
 	if r, err := g.Refund(s.Token, 100); err != nil || r.Kind != pm.RefundKindReversed || r.Amount != 100 {
 		t.Fatalf("first total refund = %+v, %v", r, err)
 	}
-	s2, _ := g.Start(pm.GatewayStart{BuyOrder: "b2", Amount: 100})
+	s2, _ := g.Start(pm.GatewayStart{PaymentId: "b2", Amount: 100})
 	if r, _ := g.Refund(s2.Token, 40); r.Kind != pm.RefundKindNullified {
 		t.Fatalf("partial = %+v", r)
 	}
@@ -82,7 +82,7 @@ func TestSandbox_RefundTotalThenPartial(t *testing.T) {
 
 func TestSandbox_UnknownToken(t *testing.T) {
 	g := sandbox.New("/")
-	if _, err := g.Commit("nope"); err != sandbox.ErrUnknownToken {
+	if _, err := g.Result("nope"); err != sandbox.ErrUnknownToken {
 		t.Fatalf("Commit err = %v", err)
 	}
 	if _, err := g.Refund("nope", 1); err != sandbox.ErrUnknownToken {

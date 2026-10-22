@@ -137,7 +137,7 @@ func TestReconcile_ConflictSkips(t *testing.T) {
 	token := e.started(t, "p1", refID)
 	e.gw.Approve(token)
 	e.hook.onStatus = func() {
-		if _, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{AbortToken: token}); err != nil {
+		if _, err := e.m.CompleteOnlinePayment(pm.OnlineResult{PaymentId: "p1", Result: pm.GatewayResult{Outcome: pm.OutcomeCancelled}}); err != nil {
 			t.Fatalf("concurrent abort: %v", err)
 		}
 	}

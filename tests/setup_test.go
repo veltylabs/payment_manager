@@ -18,7 +18,6 @@ const (
 	tenant    = "t1"
 	refModule = "appointment_booking"
 	refID     = "r1"
-	returnURL = "https://clinic.example/payments/webpay/return"
 )
 
 var errSimulated = fmt.Err("error simulado")
@@ -79,23 +78,12 @@ func (f *failingConn) failOn(table string, action storage.Action, skip int) {
 }
 
 // hookGateway envuelve el sandbox para meter, entre la lectura de un pago y su
-// escritura, lo que haría otro proceso al mismo tiempo (onCommit, onStatus,
+// escritura, lo que haría otro proceso al mismo tiempo (onStatus,
 // onRefund), o para hacer fallar solo las devoluciones (refundErr).
 type hookGateway struct {
 	*sandbox.Gateway
-	onCommit, onStatus, onRefund func()
-	refundErr                    error
-	// commitResult, si no es nil, reemplaza lo que informa Commit (datos raros
-	// de la pasarela).
-	commitResult *pm.GatewayResult
-}
-
-func (h *hookGateway) Commit(token string) (pm.GatewayResult, error) {
-	run(&h.onCommit)
-	if h.commitResult != nil {
-		return *h.commitResult, nil
-	}
-	return h.Gateway.Commit(token)
+	onStatus, onRefund func()
+	refundErr          error
 }
 
 func (h *hookGateway) Status(token string) (pm.GatewayResult, error) {
@@ -166,7 +154,6 @@ func build(t *testing.T, withGateway bool, withTerminal bool) *env {
 		e.gw = sandbox.New("https://webpay.example/pay")
 		e.hook = &hookGateway{Gateway: e.gw}
 		deps.Gateway = e.hook
-		deps.ReturnURL = returnURL
 	}
 	m, err := pm.New(orm.New(e.conn), deps)
 	if err != nil {
@@ -201,7 +188,8 @@ func (e *env) paidOnline(t *testing.T, id, ref string) string {
 	t.Helper()
 	token := e.started(t, id, ref)
 	e.gw.Approve(token)
-	if _, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token}); err != nil {
+	r, _ := e.gw.Result(token)
+	if _, err := e.m.CompleteOnlinePayment(r); err != nil {
 		t.Fatalf("CompleteOnlinePayment: %v", err)
 	}
 	return token

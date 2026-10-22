@@ -1,8 +1,5 @@
 package paymentmanager
 
-// Gateway es la pasarela de pago online. La implementación concreta
-// (github.com/veltylabs/transbank) la inyecta la app; sus llamadas son
-// síncronas y solo corren en el servidor.
 // Terminal es la máquina de cobro con tarjeta de una caja. La implementación concreta (por ejemplo
 // github.com/veltylabs/tuu) la inyecta la app; sus llamadas son síncronas y solo corren en el servidor.
 type Terminal interface {
@@ -31,25 +28,35 @@ type TerminalResult struct {
 	CardLast4         string
 }
 
+// Gateway es la pasarela de pago en línea. La implementación (github.com/veltylabs/transbank,
+// github.com/veltylabs/tuu) la inyecta la app; verifica sola lo que le devuelve su procesador y llama a
+// CompleteOnlinePayment con el resultado ya verificado. Sus llamadas son síncronas y solo corren en el servidor.
 type Gateway interface {
 	Provider() string
 	Start(req GatewayStart) (GatewayStarted, error)
-	Commit(token string) (GatewayResult, error)
 	Status(token string) (GatewayResult, error)
 	Refund(token string, amount int64) (GatewayRefund, error)
 }
 
 type GatewayStart struct {
-	BuyOrder  string
-	SessionId string
-	Amount    int64
-	Currency  string
-	ReturnURL string
+	PaymentId   string // nuestro id (Webpay: buy_order y session_id; TUU: x_reference)
+	Amount      int64
+	Currency    string
+	Description string // texto corto para el pagador; puede ir vacío
+	Payer       Payer  // lo exige TUU; Webpay lo ignora
+}
+
+// Payer es quien paga en línea. Los campos pueden ir vacíos; un adaptador que los exige responde error.
+type Payer struct {
+	Name  string
+	Email string
+	Phone string
 }
 
 type GatewayStarted struct {
-	Token       string
+	Token       string // id del cobro en el procesador; se guarda en Payment.ProviderToken
 	RedirectURL string
+	TokenField  string // no vacío: el navegador envía Token por POST en este campo (Webpay: "token_ws"); vacío: GET a RedirectURL
 }
 
 const (
@@ -57,6 +64,7 @@ const (
 	OutcomeAuthorized = "authorized"
 	OutcomeRejected   = "rejected"
 	OutcomeCancelled  = "cancelled"
+	OutcomeExpired    = "expired"
 )
 
 type GatewayResult struct {
@@ -84,8 +92,8 @@ type ChargeSource struct {
 	Device string // id de la máquina de la caja que cobra las referencias de este módulo; "" = sin máquina
 }
 
-type OnlineReturn struct {
-	Token      string
-	AbortToken string
-	BuyOrder   string
+// OnlineResult es lo que el adaptador ya verificó (firma del aviso o confirmación con el procesador).
+type OnlineResult struct {
+	PaymentId string
+	Result    GatewayResult
 }

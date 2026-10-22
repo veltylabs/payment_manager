@@ -110,7 +110,7 @@ func TestCounter_IdTakenByOtherTenant(t *testing.T) {
 
 func TestCounter_WebpayMethodRejected(t *testing.T) {
 	a := counterArgs("p1")
-	a.Method = pm.MethodWebpay
+	a.Method = pm.MethodCard
 	_, err := newEnv(t).m.CreateCounterPayment(a)
 	wantErr(t, err, pm.ErrInvalidMethod)
 }

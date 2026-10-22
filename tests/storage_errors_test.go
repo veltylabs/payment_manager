@@ -5,7 +5,6 @@ import (
 
 	"webtyp.com/storage"
 
-	pm "github.com/veltylabs/payment_manager"
 )
 
 const (
@@ -60,14 +59,16 @@ func TestStorageErrors_CompleteOnlinePayment(t *testing.T) {
 	e := newEnv(t)
 	token := e.started(t, "p1", refID)
 	e.conn.failOn(tPayment, storage.ActionReadOne, 0)
-	_, err := e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	r, _ := e.gw.Result(token)
+	_, err := e.m.CompleteOnlinePayment(r)
 	wantSimulated(t, "token lookup", err)
 
 	e = newEnv(t)
 	token = e.started(t, "p1", refID)
 	e.gw.Approve(token)
 	e.conn.failOn(tPayment, storage.ActionUpdate, 0)
-	_, err = e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	r, _ = e.gw.Result(token)
+	_, err = e.m.CompleteOnlinePayment(r)
 	wantSimulated(t, "update", err)
 
 	e = newEnv(t)
@@ -75,14 +76,16 @@ func TestStorageErrors_CompleteOnlinePayment(t *testing.T) {
 	e.gw.Approve(token)
 	e.gw.SetCommitAmount(token, 1)
 	e.conn.failOn(tPayment, storage.ActionUpdate, 0)
-	_, err = e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	r, _ = e.gw.Result(token)
+	_, err = e.m.CompleteOnlinePayment(r)
 	wantSimulated(t, "update after amount mismatch", err)
 
 	e = newEnv(t)
 	token = e.started(t, "p1", refID)
 	e.gw.Approve(token)
 	e.conn.failOn(tPayment, storage.ActionReadOne, 1) // the re-read inside the transaction
-	_, err = e.m.CompleteOnlinePayment(pm.OnlineReturn{Token: token})
+	r, _ = e.gw.Result(token)
+	_, err = e.m.CompleteOnlinePayment(r)
 	wantSimulated(t, "re-read in tx", err)
 }
 

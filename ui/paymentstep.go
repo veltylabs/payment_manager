@@ -46,14 +46,11 @@ const (
 	textCredit        lang.Text = "Credit"
 	textTransfer      lang.Text = "Transfer"
 	textRegisterPay   lang.Text = "Register payment"
-	textPayWithWebpay lang.Text = "Pay with Webpay"
+	textPayOnline lang.Text = "Pay online"
 	textWaitingCard   lang.Text = "Waiting for the card on the machine…"
 )
 
 const terminalPollMillis = 3000
-
-// FieldToken es el campo del formulario con que la pasarela recibe el token.
-const FieldToken = "token_ws"
 
 // PaymentStep cobra una referencia. En mesón registra el pago con su medio; en
 // online lleva al cliente a la pasarela. Lo incrusta, por ejemplo, el paso 6 de
@@ -120,7 +117,7 @@ func (s *PaymentStep) loadCharge() {
 			s.terminal = out.Terminal
 			s.amount.Set(paymentmanager.FormatAmount(out.Amount, out.Currency))
 			if s.Channel == paymentmanager.ChannelOnline {
-				s.body.Set([]*Element{s.payButton(textPayWithWebpay, s.startOnline)})
+				s.body.Set([]*Element{s.payButton(textPayOnline, s.startOnline)})
 				return
 			}
 			s.body.Set([]*Element{s.methodPicker(), s.payButton(textRegisterPay, s.registerCounter)})
@@ -235,6 +232,10 @@ func (s *PaymentStep) startOnline() {
 			s.errMsg.Set(err.Error())
 			return
 		}
-		NavigatePost(out.RedirectUrl, []fmt.KeyValue{{Key: FieldToken, Value: out.Token}})
+		if out.TokenField != "" {
+			NavigatePost(out.RedirectUrl, []fmt.KeyValue{{Key: out.TokenField, Value: out.Token}})
+			return
+		}
+		Navigate(out.RedirectUrl)
 	})
 }

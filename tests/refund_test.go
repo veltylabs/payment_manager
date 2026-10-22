@@ -88,7 +88,7 @@ func TestRefund_CounterInvalidMethod(t *testing.T) {
 	e := newEnv(t)
 	e.paidCounter(t, "p1", refID)
 	a := refundArgs("f1", "p1", 100)
-	a.Method = pm.MethodWebpay
+	a.Method = pm.MethodCard
 	_, err := e.m.RefundPayment(a)
 	wantErr(t, err, pm.ErrInvalidMethod)
 }

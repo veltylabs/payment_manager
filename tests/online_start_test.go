@@ -71,7 +71,7 @@ func TestStartOnline_PendingWithToken(t *testing.T) {
 		t.Fatalf("result = %+v", res)
 	}
 	p := e.payment(t, "p1")
-	if p.Status != pm.StatusPending || p.Channel != pm.ChannelOnline || p.Method != pm.MethodWebpay || p.ProviderToken != res.Token || p.ReturnTo != "booking" {
+	if p.Status != pm.StatusPending || p.Channel != pm.ChannelOnline || p.Method != pm.MethodCard || p.ProviderToken != res.Token || p.ReturnTo != "booking" {
 		t.Fatalf("payment = %+v", p)
 	}
 }

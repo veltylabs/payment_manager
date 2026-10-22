@@ -4,6 +4,8 @@
 package sandbox
 
 import (
+	"strings"
+
 	"webtyp.com/fmt"
 
 	paymentmanager "github.com/veltylabs/payment_manager"
@@ -12,7 +14,7 @@ import (
 // AuthorizationCode es el código que informa toda autorización y devolución.
 const AuthorizationCode = "SBX123"
 
-// TokenPrefix antecede al BuyOrder en cada token que entrega Start.
+// TokenPrefix antecede al PaymentId en cada token que entrega Start.
 const TokenPrefix = "sbx-"
 
 // ErrUnknownToken: Commit, Status o Refund con un token que Start no entregó.
@@ -72,12 +74,21 @@ func (g *Gateway) Start(req paymentmanager.GatewayStart) (paymentmanager.Gateway
 	if err := g.takeFailure(); err != nil {
 		return paymentmanager.GatewayStarted{}, err
 	}
-	token := TokenPrefix + req.BuyOrder
+	token := TokenPrefix + req.PaymentId
 	g.txs = append(g.txs, transaction{token: token, amount: req.Amount, charged: req.Amount, outcome: paymentmanager.OutcomePending})
-	return paymentmanager.GatewayStarted{Token: token, RedirectURL: g.baseURL}, nil
+	return paymentmanager.GatewayStarted{Token: token, RedirectURL: g.baseURL, TokenField: "token_ws"}, nil
 }
 
-func (g *Gateway) Commit(token string) (paymentmanager.GatewayResult, error) { return g.result(token) }
+// Result devuelve, para pruebas y la demo, el OnlineResult de un token: el resultado que fijaron Approve o Reject
+// (pendiente si ninguno) y el monto cobrado. Token desconocido → ErrUnknownToken.
+func (g *Gateway) Result(token string) (paymentmanager.OnlineResult, error) {
+	res, err := g.Status(token)
+	if err != nil {
+		return paymentmanager.OnlineResult{}, err
+	}
+	paymentId := strings.TrimPrefix(token, TokenPrefix)
+	return paymentmanager.OnlineResult{PaymentId: paymentId, Result: res}, nil
+}
 
 func (g *Gateway) Status(token string) (paymentmanager.GatewayResult, error) { return g.result(token) }
 

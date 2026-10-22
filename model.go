@@ -18,7 +18,7 @@ const (
 	MethodDebit    = "debit"
 	MethodCredit   = "credit"
 	MethodTransfer = "transfer"
-	MethodWebpay   = "webpay"
+	MethodCard     = "card" // pago en línea con tarjeta, cualquiera sea el procesador
 )
 
 const (
@@ -123,6 +123,9 @@ var StartOnlinePaymentArgsModel = model.Definition{
 		{Name: "reference_id", Type: model.Text(), NotNull: true},
 		// return_to es la pantalla (hash) a la que vuelve el navegador; opcional.
 		{Name: "return_to", Type: model.Text(), Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'_', '-'}, Maximum: 60}},
+		{Name: "payer_name", Type: model.Text(), Permitted: model.Permitted{Letters: true, Tilde: true, Spaces: true, Maximum: 120}},
+		{Name: "payer_email", Type: model.Text(), Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'@', '.', '-', '_', '+'}, Maximum: 120}},
+		{Name: "payer_phone", Type: model.Text(), Permitted: model.Permitted{Numbers: true, Extra: []rune{'+'}, Maximum: 20}},
 	},
 }
 
@@ -132,6 +135,7 @@ var StartOnlinePaymentResultModel = model.Definition{
 		{Name: "payment_id", Type: model.Text()},
 		{Name: "redirect_url", Type: model.Text()},
 		{Name: "token", Type: model.Text()},
+		{Name: "token_field", Type: model.Text()},
 	},
 }
 

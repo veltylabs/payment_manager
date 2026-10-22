@@ -165,7 +165,7 @@ func TestWASM_PaymentStep_OnlineNavigatesPost(t *testing.T) {
 	var action, token string
 	fake := js.FuncOf(func(this js.Value, _ []js.Value) any {
 		action = this.Get("action").String()
-		token = this.Call("querySelector", "input[name='"+ui.FieldToken+"']").Get("value").String()
+		token = this.Call("querySelector", "input[name='"+"token_ws"+"']").Get("value").String()
 		return nil
 	})
 	proto.Set("submit", fake)
