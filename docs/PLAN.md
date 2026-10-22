@@ -3,6 +3,8 @@ PLAN: "feat!: processor-agnostic online Gateway (adapter verifies, module settle
 TAG: v0.3.0
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 2612195174648171326
 ---
 
 > Read AGENTS.md at the repo root before any change.
