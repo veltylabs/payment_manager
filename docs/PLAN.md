@@ -3,6 +3,8 @@ PLAN: "feat: card terminal port, balance per reference, provider per payment"
 TAG: v0.2.0
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 4152317682437491582
 ---
 
 > Read AGENTS.md at the repo root before any change.
