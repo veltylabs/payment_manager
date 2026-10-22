@@ -17,7 +17,9 @@ const (
 	OpListPayments            = "list_payments"
 	OpRefundPayment           = "refund_payment"
 	OpListRefunds             = "list_refunds"
-	OpReconcileOnlinePayments = "reconcile_online_payments"
+	OpStartTerminalPayment    = "start_terminal_payment"
+	OpRefreshTerminalPayment  = "refresh_terminal_payment"
+	OpReconcilePayments       = "reconcile_payments"
 )
 
 // Recursos RBAC. La app concede ResourcePaymentOnline a la identidad anónima
@@ -50,7 +52,9 @@ func (m *Module) MountOperations(reg router.OperationRegistry) {
 	reg.Operation(OpListPayments, m.opListPayments).Requires(ResourcePayment, model.Read).Accepts(&ListPaymentsArgs{})
 	reg.Operation(OpRefundPayment, m.opRefundPayment).Requires(ResourceRefund, model.Create).Accepts(&RefundPaymentArgs{})
 	reg.Operation(OpListRefunds, m.opListRefunds).Requires(ResourceRefund, model.Read).Accepts(&ListRefundsArgs{})
-	reg.Operation(OpReconcileOnlinePayments, m.opReconcileOnlinePayments).Requires(ResourcePayment, model.Update).Accepts(&ReconcileOnlinePaymentsArgs{})
+	reg.Operation(OpStartTerminalPayment, m.opStartTerminalPayment).Requires(ResourcePayment, model.Create).Accepts(&StartTerminalPaymentArgs{})
+	reg.Operation(OpRefreshTerminalPayment, m.opRefreshTerminalPayment).Requires(ResourcePayment, model.Update).Accepts(&GetPaymentArgs{})
+	reg.Operation(OpReconcilePayments, m.opReconcilePayments).Requires(ResourcePayment, model.Update).Accepts(&ReconcilePaymentsArgs{})
 }
 
 // StatusFor es el código HTTP de un error del módulo (tabla del plan, §5).
@@ -59,7 +63,8 @@ func StatusFor(err error) int {
 	case ErrNotFound, ErrRefundNotFound:
 		return 404
 	case ErrMissingArgs, ErrUnknownReference, ErrNotPayable, ErrUnsupportedCurrency,
-		ErrInvalidMethod, ErrInvalidTransition, ErrRefundExceeds:
+		ErrInvalidMethod, ErrInvalidTransition, ErrRefundExceeds,
+		ErrNoTerminalDevice, ErrTerminalRequired, ErrNotTerminal:
 		return 400
 	case ErrIdTaken, ErrAlreadyPaid, ErrNotPaid, ErrConflict:
 		return 409
@@ -109,12 +114,15 @@ func (m *Module) opGetCharge(ctx router.Context) {
 	if !decode(ctx, &a, model.ActionRead) {
 		return
 	}
-	amount, currency, payable, err := m.Charge(a.TenantId, a.ReferenceModule, a.ReferenceId)
-	if err != nil {
+	amount, currency, err := m.Due(a.TenantId, a.ReferenceModule, a.ReferenceId)
+	switch err {
+	case nil:
+		_ = ctx.Encode(&ChargeResult{Amount: amount, Currency: currency, Payable: true, Terminal: m.hasTerminal(a.ReferenceModule)})
+	case ErrAlreadyPaid, ErrNotPayable:
+		_ = ctx.Encode(&ChargeResult{Payable: false})
+	default:
 		writeError(ctx, err)
-		return
 	}
-	_ = ctx.Encode(&ChargeResult{Amount: amount, Currency: currency, Payable: payable})
 }
 
 func (m *Module) opCreateCounterPayment(ctx router.Context) {
@@ -225,12 +233,38 @@ func (m *Module) opListRefunds(ctx router.Context) {
 	_ = ctx.Encode(&list)
 }
 
-func (m *Module) opReconcileOnlinePayments(ctx router.Context) {
-	var a ReconcileOnlinePaymentsArgs
+func (m *Module) opStartTerminalPayment(ctx router.Context) {
+	var a StartTerminalPaymentArgs
+	if !decode(ctx, &a, model.ActionCreate) {
+		return
+	}
+	p, err := m.StartTerminalPayment(a)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	_ = ctx.Encode(public(p))
+}
+
+func (m *Module) opRefreshTerminalPayment(ctx router.Context) {
+	var a GetPaymentArgs
 	if !decode(ctx, &a, model.ActionUpdate) {
 		return
 	}
-	closed, err := m.ReconcileOnlinePayments(a.TenantId, time.NowUnix())
+	p, err := m.RefreshTerminalPayment(a.TenantId, a.Id)
+	if err != nil {
+		writeError(ctx, err)
+		return
+	}
+	_ = ctx.Encode(public(p))
+}
+
+func (m *Module) opReconcilePayments(ctx router.Context) {
+	var a ReconcilePaymentsArgs
+	if !decode(ctx, &a, model.ActionUpdate) {
+		return
+	}
+	closed, err := m.ReconcilePayments(a.TenantId, time.NowUnix())
 	if err != nil {
 		writeError(ctx, err)
 		return

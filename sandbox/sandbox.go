@@ -39,6 +39,8 @@ var _ paymentmanager.Gateway = (*Gateway)(nil)
 // New crea una pasarela cuyo RedirectURL es baseURL.
 func New(baseURL string) *Gateway { return &Gateway{baseURL: baseURL} }
 
+func (g *Gateway) Provider() string { return "sandbox" }
+
 // Approve hace que la transacción se informe autorizada.
 func (g *Gateway) Approve(token string) {
 	g.set(token, func(t *transaction) { t.outcome = paymentmanager.OutcomeAuthorized })

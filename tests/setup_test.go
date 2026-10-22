@@ -111,6 +111,10 @@ func (h *hookGateway) Refund(token string, amount int64) (pm.GatewayRefund, erro
 	return h.Gateway.Refund(token, amount)
 }
 
+func (h *hookGateway) Provider() string {
+	return h.Gateway.Provider()
+}
+
 // run ejecuta el gancho una sola vez (lo borra antes, para que una llamada
 // anidada no lo repita).
 func run(hook *func()) {
@@ -124,6 +128,7 @@ type env struct {
 	m      *pm.Module
 	gw     *sandbox.Gateway
 	hook   *hookGateway
+	term   *sandbox.Terminal
 	pub    *recorder
 	charge *fakeCharge
 	conn   *failingConn
@@ -131,15 +136,20 @@ type env struct {
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	return build(t, true)
+	return build(t, true, false)
 }
 
 func newEnvNoGateway(t *testing.T) *env {
 	t.Helper()
-	return build(t, false)
+	return build(t, false, false)
 }
 
-func build(t *testing.T, withGateway bool) *env {
+func newEnvTerminal(t *testing.T) *env {
+	t.Helper()
+	return build(t, true, true)
+}
+
+func build(t *testing.T, withGateway bool, withTerminal bool) *env {
 	t.Helper()
 	e := &env{
 		pub:    &recorder{},
@@ -147,6 +157,11 @@ func build(t *testing.T, withGateway bool) *env {
 		conn:   &failingConn{Conn: mem.New()},
 	}
 	deps := pm.Deps{Publisher: e.pub, Charges: []pm.ChargeSource{{Module: refModule, Reader: e.charge}}}
+	if withTerminal {
+		e.term = sandbox.NewTerminal()
+		deps.Terminal = e.term
+		deps.Charges[0].Device = "POS-1"
+	}
 	if withGateway {
 		e.gw = sandbox.New("https://webpay.example/pay")
 		e.hook = &hookGateway{Gateway: e.gw}

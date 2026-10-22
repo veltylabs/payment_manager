@@ -35,7 +35,7 @@ var (
 )
 
 const (
-	textReconcile     lang.Text = "Reconcile online payments"
+	textReconcile     lang.Text = "Reconcile payments"
 	textClosed        lang.Text = "Closed payments:"
 	textRefund        lang.Text = "Refund"
 	textAmount        lang.Text = "Amount"
@@ -108,8 +108,8 @@ func (v *PaymentsView) reload() {
 
 func (v *PaymentsView) reconcile() {
 	out := &paymentmanager.ReconcileResult{}
-	v.caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpReconcileOnlinePayments,
-		&paymentmanager.ReconcileOnlinePaymentsArgs{TenantId: v.tenantID}, out,
+	v.caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpReconcilePayments,
+		&paymentmanager.ReconcilePaymentsArgs{TenantId: v.tenantID}, out,
 		func(err error) {
 			if err != nil {
 				v.message.Set(err.Error())

@@ -45,7 +45,7 @@ func TestModels_RoundTripAndValidate(t *testing.T) {
 	roundTrip(t, "list_payments_args", &pm.ListPaymentsArgs{TenantId: tenant, From: 1, To: 2}, &pm.ListPaymentsArgs{})
 	roundTrip(t, "refund_payment_args", &pm.RefundPaymentArgs{TenantId: tenant, Id: "f1", PaymentId: "p1", Amount: 1, Reason: "r", Method: pm.MethodCash}, &pm.RefundPaymentArgs{})
 	roundTrip(t, "list_refunds_args", &pm.ListRefundsArgs{TenantId: tenant, PaymentId: "p1"}, &pm.ListRefundsArgs{})
-	roundTrip(t, "reconcile_online_payments_args", &pm.ReconcileOnlinePaymentsArgs{TenantId: tenant}, &pm.ReconcileOnlinePaymentsArgs{})
+	roundTrip(t, "reconcile_payments_args", &pm.ReconcilePaymentsArgs{TenantId: tenant}, &pm.ReconcilePaymentsArgs{})
 	roundTrip(t, "reconcile_result", &pm.ReconcileResult{Closed: 2}, &pm.ReconcileResult{})
 
 	if err := (&pm.GetPaymentArgs{TenantId: tenant, Id: "p1"}).Validate(model.ActionRead); err != nil {
@@ -77,7 +77,7 @@ func TestModels_GeneratedLists(t *testing.T) {
 		{"payment_status_result", &pm.PaymentStatusResultList{}}, {"get_charge_args", &pm.GetChargeArgsList{}},
 		{"charge_result", &pm.ChargeResultList{}}, {"list_payments_by_reference_args", &pm.ListPaymentsByReferenceArgsList{}},
 		{"list_payments_args", &pm.ListPaymentsArgsList{}}, {"refund_payment_args", &pm.RefundPaymentArgsList{}},
-		{"list_refunds_args", &pm.ListRefundsArgsList{}}, {"reconcile_online_payments_args", &pm.ReconcileOnlinePaymentsArgsList{}},
+		{"list_refunds_args", &pm.ListRefundsArgsList{}}, {"reconcile_payments_args", &pm.ReconcilePaymentsArgsList{}},
 		{"reconcile_result", &pm.ReconcileResultList{}},
 	}
 	for _, c := range cases {

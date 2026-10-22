@@ -3,8 +3,10 @@ PLAN: "feat: card terminal port, balance per reference, provider per payment"
 TAG: v0.2.0
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 4152317682437491582
+PR: https://github.com/veltylabs/payment_manager/pull/5
+REVIEWED_COMMIT: b5ec169524edb725aaa55543e391c9fbdaa644c8
 ---
 
 > Read AGENTS.md at the repo root before any change.

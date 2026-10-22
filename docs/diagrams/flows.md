@@ -1,8 +1,6 @@
 # Flujos de `payment_manager`
 
-Cada rombo lleva un id (`C1`, `S2`, …). La tabla de trazabilidad de
-[`docs/PLAN.md`](../PLAN.md) §12 asigna a cada rama (`C1-sí`, `C1-no`, …) la prueba que la
-cubre. Una rama sin prueba es un defecto.
+Cada rombo lleva un id (`C1`, `S2`, …). Cada rama tiene una prueba en `tests/` con su id en el nombre o en un comentario.
 
 ## 1. Estados del pago (FSM)
 
@@ -50,7 +48,7 @@ flowchart TD
     C3 -- no --> E1[ErrIdTaken]
     C2 -- no --> C4{C4: ¿medio cash/debit/<br>credit/transfer?}
     C4 -- no --> E2[ErrInvalidMethod]
-    C4 -- sí --> C5{C5: ¿la referencia ya<br>tiene pago PAID o<br>PARTIALLY_REFUNDED?}
+    C4 -- sí --> C5{C5: ¿Due > 0?}
     C5 -- sí --> E3[ErrAlreadyPaid]
     C5 -- no --> CH[Charge §2]
     CH --> C6{C6: ¿payable?}
@@ -155,15 +153,15 @@ flowchart TD
     F11 -- sí --> EV[publicar payment.refunded]
 ```
 
-## 8. Conciliar (`ReconcileOnlinePayments`)
+## 8. Conciliar (`ReconcilePayments`)
 
 ```mermaid
 flowchart TD
-    A[para cada pago online PENDING del tenant] --> Q1{Q1: ¿creado hace más de<br>OnlinePendingTimeout?}
+    A[para cada pago online/máquina PENDING del tenant] --> Q1{Q1: ¿creado hace más de<br>PendingTimeout?}
     Q1 -- no --> SKIP[no tocar]
     Q1 -- sí --> Q2{Q2: ¿más viejo que<br>GatewayStatusWindow?}
-    Q2 -- sí --> EXP[EXPIRE sin llamar a la pasarela]
-    Q2 -- no --> ST[Gateway.Status]
+    Q2 -- sí --> EXP[EXPIRE sin llamar a la pasarela o máquina]
+    Q2 -- no --> ST[Gateway.Status o Terminal.Status]
     ST --> Q3{Q3: ¿error?}
     Q3 -- sí --> NEXT[saltarlo y seguir]
     Q3 -- no --> SETTLE[Asentar §6 con K3 = sí]
@@ -190,6 +188,22 @@ sequenceDiagram
     S-->>T: Payment
     T-->>N: 303 /?payment=id&status=PAID#return_to
     N->>N: ui.TakeReturn()
+```
+
+## 11. Cobro con máquina (StartTerminalPayment / RefreshTerminalPayment)
+
+```mermaid
+flowchart TD
+    A[Push] --> T1{Push OK, Status authorized} --> P1[PAID, EventPay]
+    A --> T2{Status rejected} --> P2[FAILED, EventFail]
+    A --> T3{Status cancelled} --> P3[CANCELLED, EventCancel]
+    A --> T4{Status pending} --> P4[PENDING]
+    A --> T5{Authorized monto menor} --> P5[FAILED, ErrAmountMismatch]
+    A --> T6{Push error} --> P6[FAILED, ErrTerminalFailed]
+    A --> T7{Status error} --> P7[PENDING, ErrTerminalFailed]
+    B[CreateCounterPayment] --> T8{Module with device} --> P8[ErrTerminalRequired]
+    A --> T9{Same ID twice} --> P9[Returns first, one Push]
+    C[RefreshTerminalPayment] --> T10{Counter payment} --> P10[ErrNotTerminal]
 ```
 
 ## 10. Paso de pago en pantalla (`ui.PaymentStep`)

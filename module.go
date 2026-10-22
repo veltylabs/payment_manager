@@ -25,6 +25,7 @@ type Deps struct {
 	Gateway   Gateway          // opcional — nil: el canal online responde ErrGatewayUnavailable
 	ReturnURL string           // requerido con Gateway: URL absoluta de la ruta de retorno
 	Charges   []ChargeSource   // requerido: quién responde el monto de cada módulo de referencia
+	Terminal  Terminal         // opcional — nil: el cobro con máquina responde ErrTerminalUnavailable
 }
 
 // Module registra, confirma y devuelve pagos.
@@ -35,6 +36,7 @@ type Module struct {
 	gw        Gateway
 	retURL    string
 	charges   []ChargeSource
+	term      Terminal
 	receiptMu sync.Mutex
 }
 
@@ -46,6 +48,11 @@ func New(db *orm.DB, deps Deps) (*Module, error) {
 	if deps.Gateway != nil && deps.ReturnURL == "" {
 		return nil, fmt.Err("payment_manager: Deps.ReturnURL is required with a Gateway")
 	}
+	for _, c := range deps.Charges {
+		if c.Device != "" && deps.Terminal == nil {
+			return nil, fmt.Err("payment_manager: Deps.Terminal is required when a ChargeSource names a Device")
+		}
+	}
 	return &Module{
 		db:      db,
 		repo:    &repository{db: db},
@@ -53,6 +60,7 @@ func New(db *orm.DB, deps Deps) (*Module, error) {
 		gw:      deps.Gateway,
 		retURL:  deps.ReturnURL,
 		charges: deps.Charges,
+		term:    deps.Terminal,
 	}, nil
 }
 
@@ -66,20 +74,28 @@ func isCounterMethod(method string) bool {
 	return method == MethodCash || method == MethodDebit || method == MethodCredit || method == MethodTransfer
 }
 
+func (m *Module) source(referenceModule string) (ChargeSource, bool) {
+	for _, c := range m.charges {
+		if c.Module == referenceModule {
+			return c, true
+		}
+	}
+	return ChargeSource{}, false
+}
+
+func (m *Module) hasTerminal(referenceModule string) bool {
+	src, ok := m.source(referenceModule)
+	return m.term != nil && ok && src.Device != ""
+}
+
 // Charge pregunta al módulo dueño de la referencia cuánto se cobra. El monto
 // nunca viene del cliente.
 func (m *Module) Charge(tenantId, referenceModule, referenceId string) (amount int64, currency string, payable bool, err error) {
-	var reader ChargeReader
-	for _, c := range m.charges {
-		if c.Module == referenceModule {
-			reader = c.Reader
-			break
-		}
-	}
-	if reader == nil {
+	src, ok := m.source(referenceModule)
+	if !ok {
 		return 0, "", false, ErrUnknownReference
 	}
-	amount, currency, payable, err = reader.Charge(tenantId, referenceId)
+	amount, currency, payable, err = src.Reader.Charge(tenantId, referenceId)
 	if err != nil {
 		return 0, "", false, err
 	}
@@ -89,37 +105,34 @@ func (m *Module) Charge(tenantId, referenceModule, referenceId string) (amount i
 	return amount, currency, payable, nil
 }
 
-// referencePaid informa si la referencia ya tiene un pago vigente.
-func (m *Module) referencePaid(tenantId, referenceModule, referenceId string) (bool, error) {
+// Due devuelve lo que falta cobrar de una referencia: el monto que informa su ChargeReader menos el
+// bruto de los pagos PAID y PARTIALLY_REFUNDED de esa referencia. Un pago PENDING, FAILED, CANCELLED,
+// EXPIRED o REFUNDED no cuenta. El monto nunca viene del cliente.
+func (m *Module) Due(tenantId, referenceModule, referenceId string) (amount int64, currency string, err error) {
 	payments, err := m.repo.paymentsByReference(tenantId, referenceModule, referenceId)
-	if err != nil {
-		return false, err
-	}
-	for _, p := range payments {
-		if p.Status == StatusPaid || p.Status == StatusPartiallyRefunded {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-// chargeFor resuelve el monto de una referencia que aún no está pagada.
-func (m *Module) chargeFor(tenantId, referenceModule, referenceId string) (int64, string, error) {
-	paid, err := m.referencePaid(tenantId, referenceModule, referenceId)
 	if err != nil {
 		return 0, "", err
 	}
-	if paid {
-		return 0, "", ErrAlreadyPaid
+	var covered int64
+	for _, p := range payments {
+		if p.Status == StatusPaid || p.Status == StatusPartiallyRefunded {
+			covered += p.Amount
+		}
 	}
-	amount, currency, payable, err := m.Charge(tenantId, referenceModule, referenceId)
+	total, currency, payable, err := m.Charge(tenantId, referenceModule, referenceId)
 	if err != nil {
 		return 0, "", err
 	}
 	if !payable {
+		if covered > 0 {
+			return 0, "", ErrAlreadyPaid
+		}
 		return 0, "", ErrNotPayable
 	}
-	return amount, currency, nil
+	if total-covered <= 0 {
+		return 0, "", ErrAlreadyPaid
+	}
+	return total - covered, currency, nil
 }
 
 // CreateCounterPayment registra un pago hecho en el mesón. Nace pagado.
@@ -141,7 +154,10 @@ func (m *Module) CreateCounterPayment(cmd CreateCounterPaymentArgs) (Payment, er
 	if !isCounterMethod(cmd.Method) {
 		return Payment{}, ErrInvalidMethod
 	}
-	amount, currency, err := m.chargeFor(cmd.TenantId, cmd.ReferenceModule, cmd.ReferenceId)
+	if (cmd.Method == MethodDebit || cmd.Method == MethodCredit) && m.hasTerminal(cmd.ReferenceModule) {
+		return Payment{}, ErrTerminalRequired
+	}
+	amount, currency, err := m.Due(cmd.TenantId, cmd.ReferenceModule, cmd.ReferenceId)
 	if err != nil {
 		return Payment{}, err
 	}
@@ -194,7 +210,7 @@ func (m *Module) StartOnlinePayment(cmd StartOnlinePaymentArgs) (StartOnlinePaym
 	} else if err != ErrNotFound {
 		return StartOnlinePaymentResult{}, err
 	}
-	amount, currency, err := m.chargeFor(cmd.TenantId, cmd.ReferenceModule, cmd.ReferenceId)
+	amount, currency, err := m.Due(cmd.TenantId, cmd.ReferenceModule, cmd.ReferenceId)
 	if err != nil {
 		return StartOnlinePaymentResult{}, err
 	}
@@ -224,10 +240,120 @@ func (m *Module) StartOnlinePayment(cmd StartOnlinePaymentArgs) (StartOnlinePaym
 		return StartOnlinePaymentResult{}, ErrGatewayFailed
 	}
 	p.ProviderToken = started.Token
+	p.Provider = m.gw.Provider()
 	if err := m.create(&p); err != nil {
 		return StartOnlinePaymentResult{}, err
 	}
 	return StartOnlinePaymentResult{PaymentId: p.Id, RedirectUrl: started.RedirectURL, Token: started.Token}, nil
+}
+
+// StartTerminalPayment crea el pago PENDING y envía el monto a la máquina de la caja del módulo de la
+// referencia. Repetir el mismo id con la misma referencia devuelve el pago guardado.
+func (m *Module) StartTerminalPayment(cmd StartTerminalPaymentArgs) (Payment, error) {
+	if m.term == nil {
+		return Payment{}, ErrTerminalUnavailable
+	}
+	if cmd.TenantId == "" || cmd.Id == "" || cmd.ReferenceModule == "" || cmd.ReferenceId == "" || cmd.Method == "" {
+		return Payment{}, ErrMissingArgs
+	}
+	existing, err := m.repo.paymentAnyTenant(cmd.Id)
+	if err == nil {
+		if existing.TenantId == cmd.TenantId && existing.ReferenceModule == cmd.ReferenceModule && existing.ReferenceId == cmd.ReferenceId {
+			return existing, nil
+		}
+		return Payment{}, ErrIdTaken
+	}
+	if err != ErrNotFound {
+		return Payment{}, err
+	}
+	if cmd.Method != MethodDebit && cmd.Method != MethodCredit {
+		return Payment{}, ErrInvalidMethod
+	}
+	src, ok := m.source(cmd.ReferenceModule)
+	if !ok || src.Device == "" {
+		return Payment{}, ErrNoTerminalDevice
+	}
+	amount, currency, err := m.Due(cmd.TenantId, cmd.ReferenceModule, cmd.ReferenceId)
+	if err != nil {
+		return Payment{}, err
+	}
+
+	now := time.NowUnix()
+	p := Payment{
+		Id:              cmd.Id,
+		TenantId:        cmd.TenantId,
+		ReferenceModule: cmd.ReferenceModule,
+		ReferenceId:     cmd.ReferenceId,
+		Channel:         ChannelTerminal,
+		Method:          cmd.Method,
+		Amount:          amount,
+		Currency:        currency,
+		Status:          StatusPending,
+		Provider:        m.term.Provider(),
+		CreatedAt:       now,
+		UpdatedAt:       now,
+		Revision:        1,
+	}
+	pushed, err := m.term.Push(TerminalPush{RequestId: p.Id, Device: src.Device, Amount: amount, Currency: currency, Method: cmd.Method})
+	if err != nil {
+		p.Status = StatusFailed
+		_ = m.create(&p)
+		return Payment{}, ErrTerminalFailed
+	}
+	p.ProviderToken = pushed.Token
+	if err := m.create(&p); err != nil {
+		return Payment{}, err
+	}
+	return p, nil
+}
+
+// RefreshTerminalPayment consulta la máquina y asienta el resultado de un pago PENDING. Un pago que ya
+// no está PENDING se devuelve tal cual.
+func (m *Module) RefreshTerminalPayment(tenantId, id string) (Payment, error) {
+	p, err := m.repo.paymentById(tenantId, id)
+	if err != nil {
+		return Payment{}, err
+	}
+	if p.Channel != ChannelTerminal {
+		return Payment{}, ErrNotTerminal
+	}
+	if p.Status != StatusPending {
+		return p, nil
+	}
+	if m.term == nil {
+		return Payment{}, ErrTerminalUnavailable
+	}
+	res, err := m.term.Status(p.ProviderToken)
+	if err != nil {
+		return p, ErrTerminalFailed
+	}
+	return m.settleTerminal(p, res, false)
+}
+
+// settleTerminal asienta lo que informa la máquina. fromReconcile: un resultado aún pendiente vence.
+func (m *Module) settleTerminal(p Payment, res TerminalResult, fromReconcile bool) (Payment, error) {
+	switch res.Outcome {
+	case OutcomeAuthorized:
+		if res.Amount != p.Amount {
+			failed, err := m.close(p, EventFail)
+			if err != nil {
+				return failed, err
+			}
+			return failed, ErrAmountMismatch
+		}
+		p.AuthorizationCode = res.AuthorizationCode
+		p.CardLast4 = res.CardLast4
+		p.PaidAt = time.NowUnix()
+		return m.close(p, EventPay)
+	case OutcomeRejected:
+		return m.close(p, EventFail)
+	case OutcomeCancelled:
+		return m.close(p, EventCancel)
+	}
+	if fromReconcile {
+		return m.close(p, EventExpire)
+	}
+	return p, nil
 }
 
 // CompleteOnlinePayment termina un pago online con lo que devolvió la
@@ -411,36 +537,60 @@ func (m *Module) RefundPayment(cmd RefundPaymentArgs) (Refund, error) {
 	return ref, nil
 }
 
-// ReconcileOnlinePayments cierra los pagos online que siguen PENDING después
-// de OnlinePendingTimeout (diagrama §8). Devuelve cuántos cerró. Sin pasarela
-// no hay pagos online que cerrar.
-func (m *Module) ReconcileOnlinePayments(tenantId string, now time.Unix) (int, error) {
-	if m.gw == nil {
-		return 0, nil
-	}
-	pending, err := m.repo.oldPendingOnlinePayments(tenantId, int64(now-OnlinePendingTimeout))
-	if err != nil {
-		return 0, err
-	}
+// ReconcilePayments cierra los pagos online y de máquina que siguen PENDING después
+// de PendingTimeout (diagrama §8). Devuelve cuántos cerró.
+func (m *Module) ReconcilePayments(tenantId string, now time.Unix) (int, error) {
 	closed := 0
-	for _, p := range pending {
-		var err error
-		if p.CreatedAt < time.Unix(now-GatewayStatusWindow) {
-			_, err = m.close(p, EventExpire)
-		} else {
-			result, gwErr := m.gw.Status(p.ProviderToken)
-			if gwErr != nil {
-				continue // la pasarela no respondió: se intenta en la próxima pasada
-			}
-			_, err = m.settle(p, result, true)
+	if m.gw != nil {
+		pending, err := m.repo.oldPendingPayments(tenantId, ChannelOnline, int64(now-PendingTimeout))
+		if err != nil {
+			return 0, err
 		}
-		switch err {
-		case nil, ErrAmountMismatch:
-			closed++
-		case ErrConflict, ErrGatewayFailed:
-			// otro proceso lo cerró, o la devolución falló: se reintenta después
-		default:
-			return closed, err
+		for _, p := range pending {
+			var err error
+			if p.CreatedAt < time.Unix(now-GatewayStatusWindow) {
+				_, err = m.close(p, EventExpire)
+			} else {
+				result, gwErr := m.gw.Status(p.ProviderToken)
+				if gwErr != nil {
+					continue // la pasarela no respondió: se intenta en la próxima pasada
+				}
+				_, err = m.settle(p, result, true)
+			}
+			switch err {
+			case nil, ErrAmountMismatch:
+				closed++
+			case ErrConflict, ErrGatewayFailed:
+				// otro proceso lo cerró, o la devolución falló: se reintenta después
+			default:
+				return closed, err
+			}
+		}
+	}
+	if m.term != nil {
+		pending, err := m.repo.oldPendingPayments(tenantId, ChannelTerminal, int64(now-PendingTimeout))
+		if err != nil {
+			return 0, err
+		}
+		for _, p := range pending {
+			var err error
+			if p.CreatedAt < time.Unix(now-GatewayStatusWindow) {
+				_, err = m.close(p, EventExpire)
+			} else {
+				res, termErr := m.term.Status(p.ProviderToken)
+				if termErr != nil {
+					continue
+				}
+				_, err = m.settleTerminal(p, res, true)
+			}
+			switch err {
+			case nil, ErrAmountMismatch:
+				closed++
+			case ErrConflict, ErrGatewayFailed:
+				// otro proceso lo cerró: se reintenta después
+			default:
+				return closed, err
+			}
 		}
 	}
 	return closed, nil

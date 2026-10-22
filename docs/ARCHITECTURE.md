@@ -36,6 +36,7 @@ stateDiagram-v2
 ## Reglas Strictas de Dinero
 
 - **Nunca de entrada de cliente**: El valor se consulta siempre al módulo dueño (e.g. `appointment_booking` vía `ChargeReader`).
+- El valor a cobrar de una referencia (`Due`) es el bruto que reporta `ChargeReader` menos la suma de sus pagos `PAID` y `PARTIALLY_REFUNDED`. Pagos pendientes, fallidos, cancelados o devueltos no se restan.
 - **Enteros y Monedas**: Siempre se almacena el monto en las unidades mínimas indivisibles (`int64`). CLP sin decimales, USD con 2.
 - **Concurrencia optimista**: cada cambio de un pago (cierre, devolución) relee el pago dentro de la transacción y compara `revision`; si cambió, responde `ErrConflict` y no escribe nada. La devolución crea el `Refund` y actualiza el pago en la misma transacción.
 - **Ids de quien llama**: pagos y devoluciones traen su id; repetir la misma operación devuelve lo guardado y reusar un id para otra cosa (aun en otro tenant) responde `ErrIdTaken`.
@@ -44,6 +45,7 @@ stateDiagram-v2
 ## Puertos
 
 - `Gateway` (`Start`, `Commit`, `Status`, `Refund`): la pasarela concreta (`github.com/veltylabs/transbank`) la inyecta la app; `sandbox/` es la versión en memoria.
+- `Terminal` (`Push`, `Status`): la máquina de cobro de una caja (como `github.com/veltylabs/tuu`). El servidor empuja el monto al equipo y consulta el estado intermitentemente; el comprobante o boleta se imprime allá (sin número de recibo local).
 - `ChargeReader`: el módulo dueño de la referencia responde cuánto se cobra (`Deps.Charges`).
 - `PaidAmount(tenant, paymentId, module, reference)`: lo usa el módulo dueño para verificar un pago antes de confirmar (lo satisface `*Module` estructuralmente).
 
