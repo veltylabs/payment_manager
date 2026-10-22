@@ -1,4 +1,5 @@
 package paymentmanager
+import "webtyp.com/time"
 
 // Terminal es la máquina de cobro con tarjeta de una caja. La implementación concreta (por ejemplo
 // github.com/veltylabs/tuu) la inyecta la app; sus llamadas son síncronas y solo corren en el servidor.
@@ -96,4 +97,34 @@ type ChargeSource struct {
 type OnlineResult struct {
 	PaymentId string
 	Result    GatewayResult
+}
+
+// PayoutTerms es lo que un adaptador (Terminal o Gateway) sabe de su plan contratado: cuánto descuenta el
+// procesador y en cuántos días hábiles bancarios deposita. Es opcional: el módulo lo detecta con una aserción
+// de tipo; sin él, un cobro con tarjeta se registra sin fecha de depósito ni comisión.
+// Ejemplo: terms, ok := gateway.(paymentmanager.PayoutTerms)
+type PayoutTerms interface {
+	Payout(c PayoutCharge) (Payout, error)
+}
+
+// PayoutCharge es el cobro del que se pregunta el abono.
+type PayoutCharge struct {
+	Amount   int64
+	Currency string
+	Method   string // MethodDebit, MethodCredit o MethodCard
+	Channel  string // ChannelTerminal o ChannelOnline
+}
+
+// Payout es lo que responde el adaptador: comisión, IVA de la comisión y días hábiles hasta el depósito.
+// El neto depositado es Amount − Fee − FeeTax.
+type Payout struct {
+	Fee          int64
+	FeeTax       int64
+	BusinessDays int
+}
+
+// BankDays convierte días hábiles bancarios en fecha. Lo cumple business_calendar.(*Module).BankDayAfter.
+// Ejemplo: deps.BankDays = calendario
+type BankDays interface {
+	BankDayAfter(from time.Unix, days int) (time.Unix, error)
 }

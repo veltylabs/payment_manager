@@ -25,6 +25,7 @@ type Deps struct {
 	Gateway   Gateway          // opcional — nil: el canal online responde ErrGatewayUnavailable
 	Charges   []ChargeSource   // requerido: quién responde el monto de cada módulo de referencia
 	Terminal  Terminal         // opcional — nil: el cobro con máquina responde ErrTerminalUnavailable
+	BankDays  BankDays         // requerido si el Terminal o el Gateway implementan PayoutTerms
 }
 
 // Module registra, confirma y devuelve pagos.
@@ -37,6 +38,7 @@ type Module struct {
 	charges   []ChargeSource
 	term      Terminal
 	receiptMu sync.Mutex
+	bank      BankDays
 }
 
 // New conecta el módulo a un *orm.DB ya migrado (ver el subpaquete migrate).
@@ -50,6 +52,12 @@ func New(db *orm.DB, deps Deps) (*Module, error) {
 			return nil, fmt.Err("payment_manager: Deps.Terminal is required when a ChargeSource names a Device")
 		}
 	}
+
+	_, termHasPayout := deps.Terminal.(PayoutTerms)
+	_, gwHasPayout := deps.Gateway.(PayoutTerms)
+	if (termHasPayout || gwHasPayout) && deps.BankDays == nil {
+		return nil, fmt.Err("payment_manager: Deps.BankDays is required when an adapter implements PayoutTerms")
+	}
 	return &Module{
 		db:      db,
 		repo:    &repository{db: db},
@@ -57,6 +65,7 @@ func New(db *orm.DB, deps Deps) (*Module, error) {
 		gw:      deps.Gateway,
 		charges: deps.Charges,
 		term:    deps.Terminal,
+		bank:    deps.BankDays,
 	}, nil
 }
 
@@ -177,6 +186,7 @@ func (m *Module) CreateCounterPayment(cmd CreateCounterPaymentArgs) (Payment, er
 		ReceiptNumber:   receiptNumber,
 		CreatedAt:       now,
 		PaidAt:          now,
+		CreatedBy:       cmd.CreatedBy,
 		UpdatedAt:       now,
 		Revision:        1,
 	}
@@ -184,8 +194,14 @@ func (m *Module) CreateCounterPayment(cmd CreateCounterPaymentArgs) (Payment, er
 		return Payment{}, err
 	}
 	if m.pub != nil {
-		if err := money.Publish(m.pub, paymentFact(p)); err != nil {
+		facts, err := m.paymentFacts(p)
+		if err != nil {
 			return Payment{}, err
+		}
+		for _, f := range facts {
+			if err := money.Publish(m.pub, f); err != nil {
+				return Payment{}, err
+			}
 		}
 	}
 	m.publish(EventPaymentPaid, &p)
@@ -425,8 +441,14 @@ func (m *Module) close(p Payment, event string) (Payment, error) {
 	switch next {
 	case StatusPaid:
 		if m.pub != nil {
-			if err := money.Publish(m.pub, paymentFact(p)); err != nil {
+			facts, err := m.paymentFacts(p)
+			if err != nil {
 				return Payment{}, err
+			}
+			for _, f := range facts {
+				if err := money.Publish(m.pub, f); err != nil {
+					return Payment{}, err
+				}
 			}
 		}
 		m.publish(EventPaymentPaid, &p)
@@ -469,6 +491,7 @@ func (m *Module) RefundPayment(cmd RefundPaymentArgs) (Refund, error) {
 		PaymentId: cmd.PaymentId,
 		Amount:    cmd.Amount,
 		Reason:    cmd.Reason,
+		CreatedBy: cmd.CreatedBy,
 		CreatedAt: time.NowUnix(),
 	}
 	if p.Channel == ChannelOnline {
@@ -514,7 +537,11 @@ func (m *Module) RefundPayment(cmd RefundPaymentArgs) (Refund, error) {
 		return Refund{}, err
 	}
 	if m.pub != nil {
-		if err := money.Publish(m.pub, refundFact(p, ref)); err != nil {
+		fact, err := refundFact(p, ref)
+		if err != nil {
+			return Refund{}, err
+		}
+		if err := money.Publish(m.pub, fact); err != nil {
 			return Refund{}, err
 		}
 	}

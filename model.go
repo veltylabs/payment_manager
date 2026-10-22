@@ -103,6 +103,7 @@ var CreateCounterPaymentArgsModel = model.Definition{
 		{Name: "reference_module", Type: model.Text(), NotNull: true},
 		{Name: "reference_id", Type: model.Text(), NotNull: true},
 		{Name: "method", Type: input.Radio(), NotNull: true},
+		{Name: "created_by", Type: model.Text()},
 	},
 }
 
@@ -126,6 +127,7 @@ var StartOnlinePaymentArgsModel = model.Definition{
 		{Name: "payer_name", Type: model.Text(), Permitted: model.Permitted{Letters: true, Tilde: true, Spaces: true, Maximum: 120}},
 		{Name: "payer_email", Type: model.Text(), Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'@', '.', '-', '_', '+'}, Maximum: 120}},
 		{Name: "payer_phone", Type: model.Text(), Permitted: model.Permitted{Numbers: true, Extra: []rune{'+'}, Maximum: 20}},
+		{Name: "created_by", Type: model.Text()},
 	},
 }
 
@@ -182,6 +184,7 @@ var StartTerminalPaymentArgsModel = model.Definition{
 		{Name: "reference_module", Type: model.Text(), NotNull: true},
 		{Name: "reference_id", Type: model.Text(), NotNull: true},
 		{Name: "method", Type: input.Radio(), NotNull: true}, // MethodDebit | MethodCredit
+		{Name: "created_by", Type: model.Text()},
 	},
 }
 
@@ -212,6 +215,7 @@ var RefundPaymentArgsModel = model.Definition{
 		{Name: "amount", Type: model.Int(), NotNull: true},
 		{Name: "reason", Type: input.Textarea(), NotNull: true, Permitted: model.Permitted{Maximum: 255}},
 		{Name: "method", Type: model.Text()},
+		{Name: "created_by", Type: model.Text()},
 	},
 }
 
