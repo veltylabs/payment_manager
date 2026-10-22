@@ -152,7 +152,7 @@ func TestWASM_PaymentStep_CounterErrorVisible(t *testing.T) {
 func TestWASM_PaymentStep_OnlineErrorVisible(t *testing.T) {
 	e := newEnvNoGateway(t)
 	root := mount(t, step(loopback.WithTenant(tenant, e.m), pm.ChannelOnline))
-	buttonByText(t, root, "Pay with Webpay").Call("click")
+	buttonByText(t, root, "Pay online").Call("click")
 	if !fmt.Contains(text(root), pm.ErrGatewayUnavailable.Error()) {
 		t.Fatalf("the error must be visible: %s", text(root))
 	}
@@ -172,7 +172,7 @@ func TestWASM_PaymentStep_OnlineNavigatesPost(t *testing.T) {
 	defer func() { proto.Set("submit", original); fake.Release() }()
 
 	root := mount(t, step(loopback.WithTenant(tenant, e.m), pm.ChannelOnline))
-	buttonByText(t, root, "Pay with Webpay").Call("click")
+	buttonByText(t, root, "Pay online").Call("click")
 
 	if action != "https://webpay.example/pay" || !fmt.HasPrefix(token, "sbx-") {
 		t.Fatalf("POST to %q with token %q", action, token)
