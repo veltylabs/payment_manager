@@ -3,8 +3,10 @@ PLAN: "feat!: processor-agnostic online Gateway (adapter verifies, module settle
 TAG: v0.3.0
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 2612195174648171326
+PR: https://github.com/veltylabs/payment_manager/pull/6
+REVIEWED_COMMIT: da59504f04cdb7c74916d9a0e59eb9453e4b4977
 ---
 
 > Read AGENTS.md at the repo root before any change.
