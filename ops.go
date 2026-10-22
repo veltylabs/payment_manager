@@ -130,6 +130,7 @@ func (m *Module) opCreateCounterPayment(ctx router.Context) {
 	if !decode(ctx, &a, model.ActionCreate) {
 		return
 	}
+	a.CreatedBy = ctx.UserID()
 	p, err := m.CreateCounterPayment(a)
 	if err != nil {
 		writeError(ctx, err)
@@ -143,6 +144,7 @@ func (m *Module) opStartOnlinePayment(ctx router.Context) {
 	if !decode(ctx, &a, model.ActionCreate) {
 		return
 	}
+	a.CreatedBy = ctx.UserID()
 	res, err := m.StartOnlinePayment(a)
 	if err != nil {
 		writeError(ctx, err)
@@ -208,6 +210,7 @@ func (m *Module) opRefundPayment(ctx router.Context) {
 	if !decode(ctx, &a, model.ActionCreate) {
 		return
 	}
+	a.CreatedBy = ctx.UserID()
 	ref, err := m.RefundPayment(a)
 	if err != nil {
 		writeError(ctx, err)
@@ -238,6 +241,7 @@ func (m *Module) opStartTerminalPayment(ctx router.Context) {
 	if !decode(ctx, &a, model.ActionCreate) {
 		return
 	}
+	a.CreatedBy = ctx.UserID()
 	p, err := m.StartTerminalPayment(a)
 	if err != nil {
 		writeError(ctx, err)

@@ -3,8 +3,10 @@ PLAN: "feat!: card payouts — deposit date and processor fee per payment; facts
 TAG: v0.4.0
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 12361960052788271007
+PR: https://github.com/veltylabs/payment_manager/pull/7
+REVIEWED_COMMIT: 1e9dc214c11a06ecce27d8752d36f249f5e34e79
 ---
 
 > Read AGENTS.md at the repo root before any change.

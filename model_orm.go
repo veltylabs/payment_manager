@@ -287,13 +287,14 @@ type CreateCounterPaymentArgs struct {
 	ReferenceModule string
 	ReferenceId string
 	Method string
+	CreatedBy string
 }
 
 func (m *CreateCounterPaymentArgs) ModelName() string { return "create_counter_payment_args" }
 
 func (m *CreateCounterPaymentArgs) Schema() []model.Field { return CreateCounterPaymentArgsModel.Fields }
 
-func (m *CreateCounterPaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.ReferenceModule, &m.ReferenceId, &m.Method} }
+func (m *CreateCounterPaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.ReferenceModule, &m.ReferenceId, &m.Method, &m.CreatedBy} }
 
 func (m *CreateCounterPaymentArgs) IsNil() bool { return m == nil }
 
@@ -303,6 +304,7 @@ func (m *CreateCounterPaymentArgs) EncodeFields(w model.FieldWriter) {
 	w.String("reference_module", m.ReferenceModule)
 	w.String("reference_id", m.ReferenceId)
 	w.String("method", m.Method)
+	w.String("created_by", m.CreatedBy)
 }
 
 func (m *CreateCounterPaymentArgs) DecodeFields(r model.FieldReader) {
@@ -311,6 +313,7 @@ func (m *CreateCounterPaymentArgs) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("reference_module"); ok { m.ReferenceModule = v }
 	if v, ok := r.String("reference_id"); ok { m.ReferenceId = v }
 	if v, ok := r.String("method"); ok { m.Method = v }
+	if v, ok := r.String("created_by"); ok { m.CreatedBy = v }
 }
 
 type CreateCounterPaymentArgsList []*CreateCounterPaymentArgs
@@ -396,13 +399,14 @@ type StartOnlinePaymentArgs struct {
 	PayerName string
 	PayerEmail string
 	PayerPhone string
+	CreatedBy string
 }
 
 func (m *StartOnlinePaymentArgs) ModelName() string { return "start_online_payment_args" }
 
 func (m *StartOnlinePaymentArgs) Schema() []model.Field { return StartOnlinePaymentArgsModel.Fields }
 
-func (m *StartOnlinePaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.ReferenceModule, &m.ReferenceId, &m.ReturnTo, &m.PayerName, &m.PayerEmail, &m.PayerPhone} }
+func (m *StartOnlinePaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.ReferenceModule, &m.ReferenceId, &m.ReturnTo, &m.PayerName, &m.PayerEmail, &m.PayerPhone, &m.CreatedBy} }
 
 func (m *StartOnlinePaymentArgs) IsNil() bool { return m == nil }
 
@@ -415,6 +419,7 @@ func (m *StartOnlinePaymentArgs) EncodeFields(w model.FieldWriter) {
 	w.String("payer_name", m.PayerName)
 	w.String("payer_email", m.PayerEmail)
 	w.String("payer_phone", m.PayerPhone)
+	w.String("created_by", m.CreatedBy)
 }
 
 func (m *StartOnlinePaymentArgs) DecodeFields(r model.FieldReader) {
@@ -426,6 +431,7 @@ func (m *StartOnlinePaymentArgs) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("payer_name"); ok { m.PayerName = v }
 	if v, ok := r.String("payer_email"); ok { m.PayerEmail = v }
 	if v, ok := r.String("payer_phone"); ok { m.PayerPhone = v }
+	if v, ok := r.String("created_by"); ok { m.CreatedBy = v }
 }
 
 type StartOnlinePaymentArgsList []*StartOnlinePaymentArgs
@@ -642,13 +648,14 @@ type StartTerminalPaymentArgs struct {
 	ReferenceModule string
 	ReferenceId string
 	Method string
+	CreatedBy string
 }
 
 func (m *StartTerminalPaymentArgs) ModelName() string { return "start_terminal_payment_args" }
 
 func (m *StartTerminalPaymentArgs) Schema() []model.Field { return StartTerminalPaymentArgsModel.Fields }
 
-func (m *StartTerminalPaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.ReferenceModule, &m.ReferenceId, &m.Method} }
+func (m *StartTerminalPaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.ReferenceModule, &m.ReferenceId, &m.Method, &m.CreatedBy} }
 
 func (m *StartTerminalPaymentArgs) IsNil() bool { return m == nil }
 
@@ -658,6 +665,7 @@ func (m *StartTerminalPaymentArgs) EncodeFields(w model.FieldWriter) {
 	w.String("reference_module", m.ReferenceModule)
 	w.String("reference_id", m.ReferenceId)
 	w.String("method", m.Method)
+	w.String("created_by", m.CreatedBy)
 }
 
 func (m *StartTerminalPaymentArgs) DecodeFields(r model.FieldReader) {
@@ -666,6 +674,7 @@ func (m *StartTerminalPaymentArgs) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("reference_module"); ok { m.ReferenceModule = v }
 	if v, ok := r.String("reference_id"); ok { m.ReferenceId = v }
 	if v, ok := r.String("method"); ok { m.Method = v }
+	if v, ok := r.String("created_by"); ok { m.CreatedBy = v }
 }
 
 type StartTerminalPaymentArgsList []*StartTerminalPaymentArgs
@@ -766,13 +775,14 @@ type RefundPaymentArgs struct {
 	Amount int64
 	Reason string
 	Method string
+	CreatedBy string
 }
 
 func (m *RefundPaymentArgs) ModelName() string { return "refund_payment_args" }
 
 func (m *RefundPaymentArgs) Schema() []model.Field { return RefundPaymentArgsModel.Fields }
 
-func (m *RefundPaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.PaymentId, &m.Amount, &m.Reason, &m.Method} }
+func (m *RefundPaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.PaymentId, &m.Amount, &m.Reason, &m.Method, &m.CreatedBy} }
 
 func (m *RefundPaymentArgs) IsNil() bool { return m == nil }
 
@@ -783,6 +793,7 @@ func (m *RefundPaymentArgs) EncodeFields(w model.FieldWriter) {
 	w.Int("amount", m.Amount)
 	w.String("reason", m.Reason)
 	w.String("method", m.Method)
+	w.String("created_by", m.CreatedBy)
 }
 
 func (m *RefundPaymentArgs) DecodeFields(r model.FieldReader) {
@@ -792,6 +803,7 @@ func (m *RefundPaymentArgs) DecodeFields(r model.FieldReader) {
 	if v, ok := r.Int("amount"); ok { m.Amount = v }
 	if v, ok := r.String("reason"); ok { m.Reason = v }
 	if v, ok := r.String("method"); ok { m.Method = v }
+	if v, ok := r.String("created_by"); ok { m.CreatedBy = v }
 }
 
 type RefundPaymentArgsList []*RefundPaymentArgs

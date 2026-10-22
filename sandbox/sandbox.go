@@ -147,3 +147,17 @@ func (g *Gateway) set(token string, fn func(*transaction)) {
 		fn(t)
 	}
 }
+
+// WithPayout envuelve a Gateway y Terminal para que implementen PayoutTerms, devolviendo la comisión que se le fije.
+type WithPayout struct {
+	paymentmanager.Gateway
+	paymentmanager.Terminal
+	payout paymentmanager.Payout
+}
+
+// SetPayout fija la respuesta de Payout.
+func (w *WithPayout) SetPayout(p paymentmanager.Payout) { w.payout = p }
+
+func (w *WithPayout) Payout(c paymentmanager.PayoutCharge) (paymentmanager.Payout, error) {
+	return w.payout, nil
+}
