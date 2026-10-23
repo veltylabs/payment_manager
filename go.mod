@@ -14,7 +14,7 @@ require (
 	webtyp.com/json v0.5.30
 	webtyp.com/lang v0.1.9
 	webtyp.com/layout v0.3.64
-	webtyp.com/model v0.2.5
+	webtyp.com/model v0.2.6
 	webtyp.com/money v0.2.0
 	webtyp.com/orm v0.12.9
 	webtyp.com/router v0.4.6
