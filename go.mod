@@ -13,11 +13,11 @@ require (
 	webtyp.com/input v0.0.20
 	webtyp.com/json v0.5.30
 	webtyp.com/lang v0.1.10
-	webtyp.com/layout v0.3.75
+	webtyp.com/layout v0.3.76
 	webtyp.com/model v0.2.6
 	webtyp.com/money v0.2.0
 	webtyp.com/orm v0.12.9
-	webtyp.com/router v0.4.6
+	webtyp.com/router v0.4.8
 	webtyp.com/storage v0.1.10
 	webtyp.com/svg v0.3.30
 	webtyp.com/time v0.6.2
