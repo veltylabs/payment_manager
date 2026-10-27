@@ -8,12 +8,12 @@ import (
 
 func TestDue_BalanceCases(t *testing.T) {
 	cases := []struct {
-		name      string
-		amount    int64
-		payable   bool
-		setup     func(e *env)
-		wantErr   error
-		wantDue   int64
+		name    string
+		amount  int64
+		payable bool
+		setup   func(e *env)
+		wantErr error
+		wantDue int64
 	}{
 		{
 			"30000, true, none -> 30000",

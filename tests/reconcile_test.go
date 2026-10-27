@@ -167,7 +167,7 @@ func TestReconcile_TerminalAuthorizedPays(t *testing.T) {
 	e := newEnvTerminal(t)
 	token := startTerminal(t, e, "p1")
 	e.term.Approve(token)
-	if n := reconcile(t, e, tm.NowUnix() + pm.PendingTimeout + 1); n != 1 {
+	if n := reconcile(t, e, tm.NowUnix()+pm.PendingTimeout+1); n != 1 {
 		t.Fatalf("closed %d", n)
 	}
 	if p := e.payment(t, "p1"); p.Status != pm.StatusPaid {
@@ -178,7 +178,7 @@ func TestReconcile_TerminalAuthorizedPays(t *testing.T) {
 func TestReconcile_TerminalExpiredWindow(t *testing.T) {
 	e := newEnvTerminal(t)
 	startTerminal(t, e, "p1")
-	if n := reconcile(t, e, tm.NowUnix() + pm.GatewayStatusWindow + pm.PendingTimeout + 1); n != 1 {
+	if n := reconcile(t, e, tm.NowUnix()+pm.GatewayStatusWindow+pm.PendingTimeout+1); n != 1 {
 		t.Fatalf("closed %d", n)
 	}
 	if p := e.payment(t, "p1"); p.Status != pm.StatusExpired {

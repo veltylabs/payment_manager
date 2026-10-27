@@ -68,7 +68,7 @@ func NewPaymentsView(caller router.Caller, ids model.IDGenerator, tenantID strin
 		caller:       caller,
 		ids:          ids,
 		tenantID:     tenantID,
-		presenter:    paymentmanager.NewView(caller, tenantID),
+		presenter:    paymentmanager.NewView(caller),
 		message:      NewString(""),
 		detail:       NewNodes(),
 		refundAmount: NewString(""),

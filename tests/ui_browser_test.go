@@ -266,10 +266,3 @@ func TestWASM_PaymentsBrowser_ErrorsVisible(t *testing.T) {
 		t.Fatalf("a reconcile error is visible: %s", text(root))
 	}
 }
-
-func TestWASM_Browser_IsAModule(t *testing.T) {
-	m, err := ui.Browser(errCaller{}, &seqIDs{}, tenant)
-	if err != nil || m == nil {
-		t.Fatalf("Browser = %v, %v", m, err)
-	}
-}

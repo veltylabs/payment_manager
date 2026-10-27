@@ -197,7 +197,13 @@ func (m *Module) opListPayments(ctx router.Context) {
 	if !decode(ctx, &a, model.ActionRead) {
 		return
 	}
-	list, err := m.ListPayments(a.TenantId, time.Unix(a.From), time.Unix(a.To))
+	from, to := a.From, a.To
+	if from == 0 && to == 0 {
+		now := int64(time.NowUnix())
+		from = now - int64(ListWindowSeconds)
+		to = now + 1
+	}
+	list, err := m.ListPayments(a.TenantId, time.Unix(from), time.Unix(to))
 	if err != nil {
 		writeError(ctx, err)
 		return

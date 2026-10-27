@@ -39,15 +39,15 @@ var (
 
 // Textos fijos (claves en inglés; su español en lang.json).
 const (
-	textLoading       lang.Text = "Loading…"
-	textNothingToPay  lang.Text = "Nothing to pay"
-	textCash          lang.Text = "Cash"
-	textDebit         lang.Text = "Debit"
-	textCredit        lang.Text = "Credit"
-	textTransfer      lang.Text = "Transfer"
-	textRegisterPay   lang.Text = "Register payment"
-	textPayOnline lang.Text = "Pay online"
-	textWaitingCard   lang.Text = "Waiting for the card on the machine…"
+	textLoading      lang.Text = "Loading…"
+	textNothingToPay lang.Text = "Nothing to pay"
+	textCash         lang.Text = "Cash"
+	textDebit        lang.Text = "Debit"
+	textCredit       lang.Text = "Credit"
+	textTransfer     lang.Text = "Transfer"
+	textRegisterPay  lang.Text = "Register payment"
+	textPayOnline    lang.Text = "Pay online"
+	textWaitingCard  lang.Text = "Waiting for the card on the machine…"
 )
 
 const terminalPollMillis = 3000
@@ -70,9 +70,9 @@ type PaymentStep struct {
 	terminal bool
 	amount   *SignalString
 	errMsg   *SignalString
-	body    *SignalNodes
-	busy    *SignalBool
-	method  string
+	body     *SignalNodes
+	busy     *SignalBool
+	method   string
 }
 
 func (s *PaymentStep) WidgetName() widget.Name { return NamePaymentStep }
