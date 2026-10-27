@@ -11,10 +11,10 @@ type Terminal struct {
 }
 
 type terminalTx struct {
-	token    string
-	amount   int64
-	charged  int64
-	outcome  string
+	token   string
+	amount  int64
+	charged int64
+	outcome string
 }
 
 const TerminalProvider = "sandbox"

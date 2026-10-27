@@ -7,7 +7,6 @@ import (
 	"webtyp.com/storage/mem"
 
 	pm "github.com/veltylabs/payment_manager"
-
 )
 
 func TestNew_RequiresCharges(t *testing.T) {

@@ -39,6 +39,7 @@ func (t *termsAdapter) Payout(c pm.PayoutCharge) (pm.Payout, error) {
 func (t *termsAdapter) Provider() string { return "test_provider" }
 
 type dummyTerminal struct{}
+
 func (t dummyTerminal) Provider() string { return "dummy_term" }
 func (t dummyTerminal) Push(req pm.TerminalPush) (pm.TerminalPushed, error) {
 	return pm.TerminalPushed{Token: "tk"}, nil
@@ -63,7 +64,7 @@ func TestFacts_Published(t *testing.T) {
 
 	deps := pm.Deps{
 		Publisher: broker,
-		Terminal: term,
+		Terminal:  term,
 		Charges:   []pm.ChargeSource{{Module: refModule, Reader: charge, Device: "term_1"}},
 	}
 	m, err := pm.New(orm.New(conn), deps)
@@ -169,8 +170,8 @@ func TestPaymentFacts_Payout(t *testing.T) {
 
 	deps := pm.Deps{
 		Publisher: broker,
-		Terminal: term,
-		BankDays: mockBankDays{},
+		Terminal:  term,
+		BankDays:  mockBankDays{},
 		Charges:   []pm.ChargeSource{{Module: refModule, Reader: charge, Device: "term_1"}},
 	}
 	m, err := pm.New(orm.New(conn), deps)
@@ -222,7 +223,7 @@ func TestPaymentFacts_MissingBankDays(t *testing.T) {
 
 	deps := pm.Deps{
 		Terminal: term,
-		Charges:   []pm.ChargeSource{{Module: refModule, Reader: charge, Device: "term_1"}},
+		Charges:  []pm.ChargeSource{{Module: refModule, Reader: charge, Device: "term_1"}},
 	}
 	_, err := pm.New(orm.New(conn), deps)
 	if err == nil {

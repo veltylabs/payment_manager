@@ -3,8 +3,10 @@ PLAN: "feat: migrate ui to view.Screen and drop layout dependency"
 TAG: v0.4.15
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 14147247853600623741
+PR: https://github.com/veltylabs/payment_manager/pull/8
+REVIEWED_COMMIT: 52a78d3749818bdc6035c9677a08357acdb4ee71
 ---
 
 > Read AGENTS.md at the repo root before any change.

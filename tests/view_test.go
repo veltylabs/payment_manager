@@ -22,7 +22,7 @@ func (errCaller) Dispatch(op string, args model.Encodable) {}
 func TestView_ListsRecentPayments(t *testing.T) {
 	e := newEnv(t)
 	e.paidCounter(t, "p1", refID)
-	presenter := pm.NewView(loopback.WithTenant(tenant, e.m), tenant)
+	presenter := pm.NewView(loopback.WithTenant(tenant, e.m))
 	var got error = errSimulated
 	presenter.Reload(func(err error) { got = err })
 	if got != nil {
@@ -42,7 +42,7 @@ func TestView_ListsRecentPayments(t *testing.T) {
 
 func TestView_ListErrorPropagates(t *testing.T) {
 	var got error
-	pm.NewView(errCaller{}, tenant).Reload(func(err error) { got = err })
+	pm.NewView(errCaller{}).Reload(func(err error) { got = err })
 	if got != errSimulated {
 		t.Fatalf("err = %v", got)
 	}

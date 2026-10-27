@@ -22,22 +22,20 @@ func (p *Payment) Item() view.Item {
 	}
 }
 
-// NewView construye el Presenter de solo lectura de los pagos del tenant de
-// los últimos ListWindowSeconds.
-func NewView(caller router.Caller, tenantId string) view.Presenter {
-	return view.New(&paymentLister{caller: caller, tenantId: tenantId}, &Payment{}, view.WithTitle(titlePayments))
+// NewView construye el Presenter de solo lectura de los pagos de los últimos ListWindowSeconds.
+func NewView(caller router.Caller, opts ...view.Option) view.Presenter {
+	allOpts := append([]view.Option{view.WithTitle(titlePayments)}, opts...)
+	return view.New(&paymentLister{caller: caller}, &Payment{}, allOpts...)
 }
 
 type paymentLister struct {
-	caller   router.Caller
-	tenantId string
+	caller router.Caller
 }
 
 func (l *paymentLister) List(done func([]model.Model, error)) {
-	now := time.NowUnix()
 	out := &PaymentList{}
 	l.caller.Call(ModelName+"."+OpListPayments,
-		&ListPaymentsArgs{TenantId: l.tenantId, From: int64(now - ListWindowSeconds), To: int64(now + 1)}, out,
+		nil, out,
 		func(err error) {
 			if err != nil {
 				done(nil, err)

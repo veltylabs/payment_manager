@@ -212,8 +212,7 @@ exempt, and only them:
 
 - `ui/` (package `ui`, no build tag; `css.go`/`svg.go` tagged `!wasm`) may import
   `webtyp.com/layout/*`, `webtyp.com/components/*`, `dom`, `html`, `css`, `svg`, `widget`. It is
-  the module's screen: `const ID`, `const Label` and `Browser(caller router.Caller, ids
-  model.IDGenerator, tenantID string) (platformd.UIModule, error)`.
+  the module's screen: `const ID`, `const Label` and `Screens(caller router.Caller) []view.Screen`.
 - `seed/` (package `seed`, no build tag) holds demo data: `Load(...) (Data, error)`, which writes
   through the module's own methods so every row is validated, and returns the rows it created so
   downstream demos can reference them.

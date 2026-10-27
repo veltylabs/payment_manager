@@ -201,8 +201,8 @@ var ListPaymentsArgsModel = model.Definition{
 	Name: "list_payments_args",
 	Fields: model.Fields{
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "from", Type: model.Int(), NotNull: true},
-		{Name: "to", Type: model.Int(), NotNull: true},
+		{Name: "from", Type: model.Int(), OmitEmpty: true},
+		{Name: "to", Type: model.Int(), OmitEmpty: true},
 	},
 }
 

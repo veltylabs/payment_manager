@@ -1,17 +1,23 @@
-//go:build browser
-
 package ui
 
 import (
+	paymentmanager "github.com/veltylabs/payment_manager"
 	"webtyp.com/lang"
-	"webtyp.com/layout/platformd"
-	"webtyp.com/model"
 	"webtyp.com/router"
-	"webtyp.com/svg"
+	"webtyp.com/view"
 )
 
-// Browser construye la pantalla Pagos: los pagos de los últimos 30 días, el
-// detalle del elegido con sus devoluciones, devolver y conciliar.
-func Browser(caller router.Caller, ids model.IDGenerator, tenantID string) (platformd.UIModule, error) {
-	return platformd.NewUIModule(ID, lang.Translate(NavLabel).String(), svg.Icon(ID), NewPaymentsView(caller, ids, tenantID)), nil
+const descPayments lang.Text = "Payment records, reconciliation and refunds."
+
+// Screens declara las pantallas que este módulo ofrece al menú de la app.
+func Screens(caller router.Caller) []view.Screen {
+	return []view.Screen{
+		{
+			ID:         ID,
+			Label:      NavLabel,
+			Icon:       ID,
+			Permission: paymentmanager.ResourcePayment,
+			Presenter:  paymentmanager.NewView(caller, view.WithDescription(descPayments)),
+		},
+	}
 }

@@ -1,12 +1,13 @@
 package paymentmanager
+
 import "webtyp.com/time"
 
 // Terminal es la máquina de cobro con tarjeta de una caja. La implementación concreta (por ejemplo
 // github.com/veltylabs/tuu) la inyecta la app; sus llamadas son síncronas y solo corren en el servidor.
 type Terminal interface {
-	Provider() string                               // nombre del procesador; se guarda en cada pago ("tuu")
-	Push(req TerminalPush) (TerminalPushed, error)  // envía el monto a la máquina; idempotente por RequestId
-	Status(token string) (TerminalResult, error)    // estado del cobro en la máquina
+	Provider() string                              // nombre del procesador; se guarda en cada pago ("tuu")
+	Push(req TerminalPush) (TerminalPushed, error) // envía el monto a la máquina; idempotente por RequestId
+	Status(token string) (TerminalResult, error)   // estado del cobro en la máquina
 }
 
 type TerminalPush struct {
