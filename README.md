@@ -13,7 +13,7 @@ webtyp
 
 ## Operaciones
 
-| Op | Descripción | Require |
+| Op | Descripción | Requiere |
 |---|---|---|
 | `get_charge` | Consulta el valor a pagar y su moneda | `payment_online`, `Read` |
 | `create_counter_payment` | Registra un pago de mesón (genera un número de recibo secuencial) | `payment`, `Create` |

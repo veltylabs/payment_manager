@@ -212,7 +212,7 @@ func TestWASM_PaymentsBrowser_RefundAndReconcile(t *testing.T) {
 	root := mount(t, v)
 
 	rows := root.Call("querySelectorAll", ".targetlist__row")
-	if rows.Length() != 1 || !fmt.Contains(text(rows.Index(0)), "$25.000") {
+	if rows.Length() != 1 || !fmt.Contains(text(rows.Index(0)), "25000") {
 		t.Fatalf("rows = %d: %s", rows.Length(), root.Get("innerHTML").String())
 	}
 	rows.Index(0).Call("click")

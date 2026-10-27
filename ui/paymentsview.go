@@ -139,7 +139,7 @@ func (v *PaymentsView) show(id string) {
 				v.message.Set(err.Error())
 				return
 			}
-			nodes := []*Element{H3().Text(p.Item().Label), P().Text(p.Item().Description)}
+			nodes := []*Element{H3().Text(paymentmanager.FormatAmount(p.Amount, p.Currency) + " · " + lang.Translate(lang.Text(p.Method)).String()), P().Text(lang.Translate(lang.Text(p.Status)).String() + " · " + p.ReferenceModule + " " + p.ReferenceId)}
 			if len(*refunds) > 0 {
 				items := Ul()
 				for _, r := range *refunds {

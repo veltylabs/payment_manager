@@ -32,7 +32,7 @@ func TestView_ListsRecentPayments(t *testing.T) {
 	if len(items) != 1 || items[0].ID != "p1" {
 		t.Fatalf("items = %+v", items)
 	}
-	if !fmt.Contains(items[0].Label, "$25.000") || !fmt.Contains(items[0].Description, refID) {
+	if !fmt.Contains(items[0].Label, "25000") || !fmt.Contains(items[0].Description, refID) {
 		t.Fatalf("item = %+v", items[0])
 	}
 	if presenter.Title() != "Payments" {

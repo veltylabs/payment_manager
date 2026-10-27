@@ -134,3 +134,13 @@ rewrite what is already Spanish), and add a short usage example to exported-symb
 | 4 | `ops.go` | save answers the record |
 | 5 | `tests/*` | `model.RowOf` |
 | 6 | docs, comments, `lang.json` | Spanish |
+
+## Executor notes
+- Added `Row: model.RowTitle` to `amount` and `Row: model.RowDetail` to `method`, `status`, `reference_module`, and `reference_id` in `PaymentModel`.
+- The following computed/formatted texts could not be declared as plain fields in the model definition and were thus replaced by raw field values in the generated rows:
+  - `FormatAmount(p.Amount, p.Currency)` (replaced by raw `amount`)
+  - `lang.Translate(p.Method).String()` (replaced by raw `method`)
+  - `lang.Translate(p.Status).String()` (replaced by raw `status`)
+- This causes the UI list to display unformatted integer amounts (e.g. `25000`) instead of formatted currency (e.g. `$25.000`) and un-translated statuses.
+- `ui/paymentsview.go` detail view still uses `FormatAmount` where manually possible.
+- The `view.NewCallerLister` was used as per view v0.6.47 and the `Item()` method on `Payment` was deleted.
