@@ -124,3 +124,20 @@ func TestModels_ResultsValidate(t *testing.T) {
 		t.Errorf("refund.payment_id references payment: %+v", ext)
 	}
 }
+
+func TestRowsDeclaredOnFields(t *testing.T) {
+	p := pm.Payment{
+		Id: "p1",
+		Amount: 25000,
+		Method: pm.MethodCredit,
+		Status: pm.StatusPaid,
+		ReferenceModule: "booking",
+		ReferenceId: "ref1",
+		Currency: pm.CurrencyCLP,
+	}
+	r := model.RowOf(&p)
+	if r.Title != "25000" {
+		t.Errorf("Title = %q, want 25000", r.Title)
+	}
+
+}

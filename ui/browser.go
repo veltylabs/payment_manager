@@ -10,6 +10,9 @@ import (
 const descPayments lang.Text = "Payment records, reconciliation and refunds."
 
 // Screens declara las pantallas que este módulo ofrece al menú de la app.
+//
+// Uso:
+//  appScreens = append(appScreens, ui.Screens(caller)...)
 func Screens(caller router.Caller) []view.Screen {
 	return []view.Screen{
 		{
