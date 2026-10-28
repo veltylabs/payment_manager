@@ -74,7 +74,7 @@ func NewPaymentsView(caller router.Caller, ids model.IDGenerator, tenantID strin
 		refundAmount: NewString(""),
 		refundReason: NewString(""),
 	}
-	v.list = &targetlist.TargetList{OnSelect: func(it view.Item) { v.show(it.ID) }}
+	v.list = &targetlist.TargetList{OnSelect: func(it model.Item) { v.show(it.ID) }}
 	return v
 }
 
