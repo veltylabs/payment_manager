@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"strings"
 	"testing"
 
 	"webtyp.com/json"
@@ -125,7 +126,7 @@ func TestModels_ResultsValidate(t *testing.T) {
 	}
 }
 
-func TestRowsDeclaredOnFields(t *testing.T) {
+func TestItemsDeclaredOnFields(t *testing.T) {
 	p := pm.Payment{
 		Id: "p1",
 		Amount: 25000,
@@ -135,9 +136,14 @@ func TestRowsDeclaredOnFields(t *testing.T) {
 		ReferenceId: "ref1",
 		Currency: pm.CurrencyCLP,
 	}
-	r := model.RowOf(&p)
-	if r.Title != "25000" {
-		t.Errorf("Title = %q, want 25000", r.Title)
+	r := p.Item()
+	if r.Label != "25000" {
+		t.Errorf("Label = %q, want 25000", r.Label)
 	}
-
+	if r.ID != "p1" {
+		t.Errorf("ID = %q, want p1", r.ID)
+	}
+	if !strings.Contains(r.Description, "booking") || !strings.Contains(r.Description, "ref1") || !strings.Contains(r.Description, string(pm.MethodCredit)) || !strings.Contains(r.Description, string(pm.CurrencyCLP)) || !strings.Contains(r.Description, string(pm.StatusPaid)) {
+		t.Errorf("Description = %q, missing expected values", r.Description)
+	}
 }

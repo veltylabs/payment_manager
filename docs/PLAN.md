@@ -78,3 +78,7 @@ with the new names (`Item: model.ItemLabel`…, «`Item()` lo genera ormc»).
 | 2 | `*.go`, `tests/*` | `Item()`, `model.Item` |
 | 3 | `tests/*` | generated item asserted |
 | 4 | comments, docs | new names |
+
+## Executor notes
+- Spanish translations not performed as `grep` showed no occurrences of the targeted keywords in comments or `.md` files (other than `docs/PLAN.md` which must not be edited structurally).
+- Encountered a primary key generation issue with `RefundPaymentArgsModel` when its `amount` field used `Item: model.ItemLabel`. It is an operation arguments model, not a listed record. Removed its Item mark as instructed.

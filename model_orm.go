@@ -5,6 +5,7 @@ package paymentmanager
 import (
 	"webtyp.com/model"
 	"webtyp.com/orm"
+	"webtyp.com/fmt"
 	"webtyp.com/time"
 )
 
@@ -105,6 +106,10 @@ func (s *PaymentList) DecodeFields(_ model.FieldReader) {}
 
 func (m *Payment) Validate(action byte) error {
 	return model.ValidateFields(action, m)
+}
+
+func (m *Payment) Item() model.Item {
+	return model.Item{ID: m.Id, Label: fmt.Convert(m.Amount).String(), Description: model.JoinItem(m.ReferenceModule, m.ReferenceId, m.Method, m.Currency, m.Status)}
 }
 
 var Payment_ = struct {
@@ -232,6 +237,10 @@ func (s *RefundList) DecodeFields(_ model.FieldReader) {}
 
 func (m *Refund) Validate(action byte) error {
 	return model.ValidateFields(action, m)
+}
+
+func (m *Refund) Item() model.Item {
+	return model.Item{ID: m.Id, Label: fmt.Convert(m.Amount).String()}
 }
 
 var Refund_ = struct {
