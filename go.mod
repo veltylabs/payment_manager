@@ -11,7 +11,7 @@ require (
 	webtyp.com/fmt v1.0.0
 	webtyp.com/html v0.0.30
 	webtyp.com/input v0.0.20
-	webtyp.com/json v0.5.30
+	webtyp.com/json v0.5.36
 	webtyp.com/lang v0.1.10
 	webtyp.com/model v0.2.9
 	webtyp.com/money v0.2.0
@@ -20,7 +20,7 @@ require (
 	webtyp.com/storage v0.1.10
 	webtyp.com/svg v0.3.30
 	webtyp.com/time v0.6.2
-	webtyp.com/view v0.6.49
+	webtyp.com/view v0.6.50
 	webtyp.com/widget v0.6.45
 )
 
