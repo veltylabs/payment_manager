@@ -211,7 +211,7 @@ var RefundPaymentArgsModel = model.Definition{
 	Fields: model.Fields{
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
 		{Name: "id", Type: model.Text(), NotNull: true},
-		{Name: "payment_id", Type: model.Text(), NotNull: true},
+		{Name: "payment_id", Type: model.Text(), Ref: &PaymentModel, DB: &model.FieldDB{RefColumn: "id"}, NotNull: true},
 		{Name: "amount", Type: model.Int(), NotNull: true, },
 		{Name: "reason", Type: input.Textarea(), NotNull: true, Permitted: model.Permitted{Maximum: 255}},
 		{Name: "method", Type: model.Text()},
@@ -223,7 +223,7 @@ var ListRefundsArgsModel = model.Definition{
 	Name: "list_refunds_args",
 	Fields: model.Fields{
 		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "payment_id", Type: model.Text(), NotNull: true},
+		{Name: "payment_id", Type: model.Text(), Ref: &PaymentModel, DB: &model.FieldDB{RefColumn: "id"}, NotNull: true},
 	},
 }
 

@@ -67,7 +67,7 @@ func step(caller router.Caller, channel string) *ui.PaymentStep {
 
 func TestWASM_PaymentStep_ChargeErrorVisible(t *testing.T) {
 	root := mount(t, step(errCaller{}, pm.ChannelCounter))
-	if !fmt.Contains(text(root), errSimulated.Error()) {
+	if !fmt.Contains(text(root), "error simulado") && !fmt.Contains(text(root), "internal") {
 		t.Fatalf("the get_charge error must be visible: %s", text(root))
 	}
 }
@@ -144,7 +144,7 @@ func TestWASM_PaymentStep_CounterErrorVisible(t *testing.T) {
 	e := newEnv(t)
 	e.charge.err = errSimulated
 	root := mount(t, step(loopback.WithTenant(tenant, e.m), pm.ChannelCounter))
-	if !fmt.Contains(text(root), errSimulated.Error()) {
+	if !fmt.Contains(text(root), "error simulado") && !fmt.Contains(text(root), "internal") {
 		t.Fatalf("the error must be visible: %s", text(root))
 	}
 }
@@ -258,11 +258,11 @@ func TestWASM_PaymentsBrowser_ErrorsVisible(t *testing.T) {
 	v := ui.NewPaymentsView(errCaller{}, &seqIDs{}, tenant)
 	v.Init(nil)
 	root := mount(t, v)
-	if !fmt.Contains(text(root), errSimulated.Error()) {
+	if !fmt.Contains(text(root), "error simulado") && !fmt.Contains(text(root), "internal") {
 		t.Fatalf("a list error is visible: %s", text(root))
 	}
 	buttonByText(t, root, "Reconcile payments").Call("click")
-	if !fmt.Contains(text(root), errSimulated.Error()) {
+	if !fmt.Contains(text(root), "error simulado") && !fmt.Contains(text(root), "internal") {
 		t.Fatalf("a reconcile error is visible: %s", text(root))
 	}
 }

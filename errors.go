@@ -1,29 +1,29 @@
 package paymentmanager
 
-type domainError string
-
-func (e domainError) Error() string { return string(e) }
+import "webtyp.com/model"
 
 const (
-	ErrNotFound            = domainError("payment not found")
-	ErrRefundNotFound      = domainError("refund not found")
-	ErrMissingArgs         = domainError("missing required arguments")
-	ErrUnknownReference    = domainError("no charge reader for this reference module")
-	ErrNotPayable          = domainError("the reference has nothing to pay")
-	ErrUnsupportedCurrency = domainError("unsupported currency")
-	ErrInvalidMethod       = domainError("invalid payment method for this channel")
-	ErrInvalidTransition   = domainError("invalid payment status transition")
-	ErrRefundExceeds       = domainError("refund amount exceeds what is left to refund")
-	ErrIdTaken             = domainError("id already used by another operation")
-	ErrAlreadyPaid         = domainError("the reference is already paid")
-	ErrNotPaid             = domainError("payment is not paid")
-	ErrConflict            = domainError("payment changed concurrently")
-	ErrGatewayUnavailable  = domainError("online payments are not configured")
-	ErrGatewayFailed       = domainError("payment gateway call failed")
-	ErrAmountMismatch      = domainError("gateway amount differs from the payment amount")
-	ErrTerminalUnavailable = domainError("card terminal payments are not configured")
-	ErrNoTerminalDevice    = domainError("no card terminal device for this reference module")
-	ErrTerminalFailed      = domainError("card terminal call failed")
-	ErrTerminalRequired    = domainError("card payments for this reference go through the card terminal")
-	ErrNotTerminal         = domainError("payment is not a card terminal payment")
+	ErrNotFound            = model.NotFound("payment not found")
+	ErrRefundNotFound      = model.NotFound("refund not found")
+	ErrMissingArgs         = model.Invalid("missing required arguments")
+	ErrUnknownReference    = model.Invalid("no charge reader for this reference module")
+	ErrNotPayable          = model.Invalid("the reference has nothing to pay")
+	ErrUnsupportedCurrency = model.Invalid("unsupported currency")
+	ErrInvalidMethod       = model.Invalid("invalid payment method for this channel")
+	ErrInvalidTransition   = model.Invalid("invalid payment status transition")
+	ErrRefundExceeds       = model.Invalid("refund amount exceeds what is left to refund")
+	ErrIdTaken             = model.Conflict("id already used by another operation")
+	ErrAlreadyPaid         = model.Conflict("the reference is already paid")
+	ErrNotPaid             = model.Conflict("payment is not paid")
+	ErrConflict            = model.Conflict("payment changed concurrently")
+	ErrGatewayUnavailable  = model.Invalid("online payments are not configured")
+	ErrGatewayFailed       = model.Invalid("payment gateway call failed")
+	ErrAmountMismatch      = model.Invalid("gateway amount differs from the payment amount")
+	ErrTerminalUnavailable = model.Invalid("card terminal payments are not configured")
+	ErrNoTerminalDevice    = model.Invalid("no card terminal device for this reference module")
+	ErrTerminalFailed      = model.Invalid("card terminal call failed")
+	ErrTerminalRequired    = model.Invalid("card payments for this reference go through the card terminal")
+	ErrNotTerminal         = model.Invalid("payment is not a card terminal payment")
 )
+
+const ErrCannotRead = model.Invalid("payment_manager: cannot read the request")

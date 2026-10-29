@@ -828,6 +828,47 @@ func (m *RefundPaymentArgs) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
 
+var RefundPaymentArgs_ = struct {
+	TenantId string
+	Id string
+	PaymentId string
+	Amount string
+	Reason string
+	Method string
+	CreatedBy string
+}{
+	TenantId: "tenant_id",
+	Id: "id",
+	PaymentId: "payment_id",
+	Amount: "amount",
+	Reason: "reason",
+	Method: "method",
+	CreatedBy: "created_by",
+}
+
+func ReadOneRefundPaymentArgs(qb *orm.QB, model *RefundPaymentArgs) (*RefundPaymentArgs, error) {
+	err := qb.ReadOne()
+	if err != nil {
+		return nil, err
+	}
+	return model, nil
+}
+
+func ReadAllRefundPaymentArgs(qb *orm.QB) (RefundPaymentArgsList, error) {
+	var results RefundPaymentArgsList
+	err := qb.ReadAll(
+		func() model.Model { return &RefundPaymentArgs{} },
+		func(m model.Model) { results = append(results, m.(*RefundPaymentArgs)) },
+	)
+	return results, err
+}
+
+func (m *RefundPaymentArgs) SchemaExt() []model.FieldExt {
+	return []model.FieldExt{
+		{Field: RefundPaymentArgsModel.Fields[2], Ref: "payment", RefColumn: "id", OnDelete: ""},
+	}
+}
+
 type ListRefundsArgs struct {
 	TenantId string
 	PaymentId string
@@ -862,6 +903,37 @@ func (s *ListRefundsArgsList) DecodeFields(_ model.FieldReader) {}
 
 func (m *ListRefundsArgs) Validate(action byte) error {
 	return model.ValidateFields(action, m)
+}
+
+var ListRefundsArgs_ = struct {
+	TenantId string
+	PaymentId string
+}{
+	TenantId: "tenant_id",
+	PaymentId: "payment_id",
+}
+
+func ReadOneListRefundsArgs(qb *orm.QB, model *ListRefundsArgs) (*ListRefundsArgs, error) {
+	err := qb.ReadOne()
+	if err != nil {
+		return nil, err
+	}
+	return model, nil
+}
+
+func ReadAllListRefundsArgs(qb *orm.QB) (ListRefundsArgsList, error) {
+	var results ListRefundsArgsList
+	err := qb.ReadAll(
+		func() model.Model { return &ListRefundsArgs{} },
+		func(m model.Model) { results = append(results, m.(*ListRefundsArgs)) },
+	)
+	return results, err
+}
+
+func (m *ListRefundsArgs) SchemaExt() []model.FieldExt {
+	return []model.FieldExt{
+		{Field: ListRefundsArgsModel.Fields[1], Ref: "payment", RefColumn: "id", OnDelete: ""},
+	}
 }
 
 type ReconcilePaymentsArgs struct {

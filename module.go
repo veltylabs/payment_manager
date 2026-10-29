@@ -153,7 +153,7 @@ func (m *Module) CreateCounterPayment(cmd CreateCounterPaymentArgs) (Payment, er
 		}
 		return Payment{}, ErrIdTaken
 	}
-	if err != ErrNotFound {
+	if model.KindOf(err) != model.ErrorNotFound {
 		return Payment{}, err
 	}
 	if !isCounterMethod(cmd.Method) {
@@ -219,7 +219,7 @@ func (m *Module) StartOnlinePayment(cmd StartOnlinePaymentArgs) (StartOnlinePaym
 	}
 	if _, err := m.repo.paymentAnyTenant(cmd.Id); err == nil {
 		return StartOnlinePaymentResult{}, ErrIdTaken
-	} else if err != ErrNotFound {
+	} else if model.KindOf(err) != model.ErrorNotFound {
 		return StartOnlinePaymentResult{}, err
 	}
 	amount, currency, err := m.Due(cmd.TenantId, cmd.ReferenceModule, cmd.ReferenceId)
@@ -280,7 +280,7 @@ func (m *Module) StartTerminalPayment(cmd StartTerminalPaymentArgs) (Payment, er
 		}
 		return Payment{}, ErrIdTaken
 	}
-	if err != ErrNotFound {
+	if model.KindOf(err) != model.ErrorNotFound {
 		return Payment{}, err
 	}
 	if cmd.Method != MethodDebit && cmd.Method != MethodCredit {
@@ -471,7 +471,7 @@ func (m *Module) RefundPayment(cmd RefundPaymentArgs) (Refund, error) {
 		}
 		return Refund{}, ErrIdTaken
 	}
-	if err != ErrRefundNotFound {
+	if model.KindOf(err) != model.ErrorNotFound {
 		return Refund{}, err
 	}
 	p, err := m.repo.paymentById(cmd.TenantId, cmd.PaymentId)
