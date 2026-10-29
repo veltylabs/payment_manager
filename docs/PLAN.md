@@ -122,3 +122,8 @@ GOPRIVATE=webtyp.com/*,github.com/veltylabs/* GOFLAGS=-mod=mod gotest
 | 5 | `lang.json`, `ui/`, `model.go` | `langc sync .` clean |
 | 6 | `tests/*`, demo | suite green, screenshots in PR |
 | 7 | `README.md` | text present |
+
+
+## Executor notes
+
+All tasks implemented successfully. Tests pass, `rpc.WriteError` was adopted, permissions point to `model.ResourceOf`, fake strings in `lang.json` were expanded correctly without identical value complaints from `langc`.

@@ -76,3 +76,7 @@ Este módulo publica [hechos económicos](https://github.com/webtyp/money) (`mon
 | `migrate/` | Esquema (`payment`, `refund`) |
 | `ui/` | Paso de pago, pantalla Pagos, vuelta de la pasarela |
 | `seed/`, `web/` | Datos y demo |
+
+- **Errores**: los errores se envían por `rpc.WriteError` y usan constantes fuertemente tipadas de `model.NotFound`, `model.Conflict` y `model.Invalid`.
+- **Permisos**: permisos por tabla configurados con `model.ResourceOf`.
+- **Modelo**: claves foráneas declaradas con la estructura `Ref`.

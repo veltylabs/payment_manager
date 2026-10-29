@@ -53,7 +53,7 @@ func TestOps_RequiresTable(t *testing.T) {
 	r := opRouter(newEnv(t))
 	want := []struct {
 		op       string
-		resource string
+		resource model.Resource
 		action   model.Action
 	}{
 		{pm.OpGetCharge, pm.ResourcePaymentOnline, model.Read},
@@ -78,7 +78,7 @@ func TestOps_RequiresTable(t *testing.T) {
 		for _, info := range routes {
 			if info.Path == "/"+w.op {
 				found = true
-				if string(info.Resource) != w.resource || info.Action != w.action || info.Access != model.AccessGuarded {
+				if info.Resource != w.resource || info.Action != w.action || info.Access != model.AccessGuarded {
 					t.Errorf("%s: %s %v %v; want %s %v guarded", w.op, info.Resource, info.Action, info.Access, w.resource, w.action)
 				}
 				if info.Args == nil {
@@ -215,26 +215,7 @@ func TestOps_ErrorStatusTable(t *testing.T) {
 	}
 }
 
-func TestStatusFor(t *testing.T) {
-	cases := []struct {
-		err  error
-		code int
-	}{
-		{pm.ErrNotFound, 404}, {pm.ErrRefundNotFound, 404},
-		{pm.ErrMissingArgs, 400}, {pm.ErrUnknownReference, 400}, {pm.ErrNotPayable, 400}, {pm.ErrUnsupportedCurrency, 400},
-		{pm.ErrInvalidMethod, 400}, {pm.ErrInvalidTransition, 400}, {pm.ErrRefundExceeds, 400},
-		{pm.ErrIdTaken, 409}, {pm.ErrAlreadyPaid, 409}, {pm.ErrNotPaid, 409}, {pm.ErrConflict, 409},
-		{pm.ErrGatewayUnavailable, 500}, {pm.ErrGatewayFailed, 500}, {pm.ErrAmountMismatch, 500}, {errSimulated, 500},
-	}
-	for _, c := range cases {
-		if got := pm.StatusFor(c.err); got != c.code {
-			t.Errorf("StatusFor(%v) = %d, want %d", c.err, got, c.code)
-		}
-		if c.err.Error() == "" {
-			t.Errorf("%v has no text", c.err)
-		}
-	}
-}
+
 
 // Sin identidad, la puerta niega: las ops no son públicas por sí solas.
 func TestOps_DeniedWithoutIdentity(t *testing.T) {

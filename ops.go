@@ -4,6 +4,7 @@ import (
 	"webtyp.com/model"
 	"webtyp.com/router"
 	"webtyp.com/time"
+	"webtyp.com/rpc"
 )
 
 // Operaciones del módulo; en el cable van como "payment_manager.<op>".
@@ -24,10 +25,10 @@ const (
 
 // Recursos RBAC. La app concede ResourcePaymentOnline a la identidad anónima
 // para la reserva online; el resto, solo al personal.
-const (
-	ResourcePayment       = "payment"
-	ResourcePaymentOnline = "payment_online"
-	ResourceRefund        = "refund"
+var (
+	ResourcePayment       = model.ResourceOf(&PaymentModel)
+	ResourcePaymentOnline = model.FeatureResource("payment_online")
+	ResourceRefund        = model.ResourceOf(&RefundModel)
 )
 
 // QueryPayment y QueryStatus son los parámetros de la query con que la ruta de
@@ -58,38 +59,17 @@ func (m *Module) MountOperations(reg router.OperationRegistry) {
 }
 
 // StatusFor es el código HTTP de un error del módulo (tabla del plan, §5).
-func StatusFor(err error) int {
-	switch err {
-	case ErrNotFound, ErrRefundNotFound:
-		return 404
-	case ErrMissingArgs, ErrUnknownReference, ErrNotPayable, ErrUnsupportedCurrency,
-		ErrInvalidMethod, ErrInvalidTransition, ErrRefundExceeds,
-		ErrNoTerminalDevice, ErrTerminalRequired, ErrNotTerminal:
-		return 400
-	case ErrIdTaken, ErrAlreadyPaid, ErrNotPaid, ErrConflict:
-		return 409
-	}
-	return 500
-}
-
-func writeError(ctx router.Context, err error) {
-	ctx.WriteStatus(StatusFor(err))
-	_, _ = ctx.Write([]byte(err.Error()))
-}
-
 // decode lee y valida los argumentos; false = ya respondió 400.
 func decode(ctx router.Context, args interface {
 	model.Decodable
 	Validate(byte) error
 }, action byte) bool {
 	if err := ctx.Decode(args); err != nil {
-		ctx.WriteStatus(400)
-		_, _ = ctx.Write([]byte(err.Error()))
+		rpc.WriteError(ctx, ErrCannotRead)
 		return false
 	}
 	if err := args.Validate(action); err != nil {
-		ctx.WriteStatus(400)
-		_, _ = ctx.Write([]byte(err.Error()))
+		rpc.WriteError(ctx, ErrCannotRead)
 		return false
 	}
 	return true
@@ -121,7 +101,7 @@ func (m *Module) opGetCharge(ctx router.Context) {
 	case ErrAlreadyPaid, ErrNotPayable:
 		_ = ctx.Encode(&ChargeResult{Payable: false})
 	default:
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 	}
 }
 
@@ -133,7 +113,7 @@ func (m *Module) opCreateCounterPayment(ctx router.Context) {
 	a.CreatedBy = ctx.UserID()
 	p, err := m.CreateCounterPayment(a)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	_ = ctx.Encode(public(p))
@@ -147,7 +127,7 @@ func (m *Module) opStartOnlinePayment(ctx router.Context) {
 	a.CreatedBy = ctx.UserID()
 	res, err := m.StartOnlinePayment(a)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	_ = ctx.Encode(&res)
@@ -160,7 +140,7 @@ func (m *Module) opGetPaymentStatus(ctx router.Context) {
 	}
 	p, err := m.GetPayment(a.TenantId, a.Id)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	_ = ctx.Encode(&PaymentStatusResult{Id: p.Id, Status: p.Status})
@@ -173,7 +153,7 @@ func (m *Module) opGetPayment(ctx router.Context) {
 	}
 	p, err := m.GetPayment(a.TenantId, a.Id)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	_ = ctx.Encode(public(p))
@@ -186,7 +166,7 @@ func (m *Module) opListPaymentsByReference(ctx router.Context) {
 	}
 	list, err := m.ListPaymentsByReference(a.TenantId, a.ReferenceModule, a.ReferenceId)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	_ = ctx.Encode(publicList(list))
@@ -205,7 +185,7 @@ func (m *Module) opListPayments(ctx router.Context) {
 	}
 	list, err := m.ListPayments(a.TenantId, time.Unix(from), time.Unix(to))
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	_ = ctx.Encode(publicList(list))
@@ -219,7 +199,7 @@ func (m *Module) opRefundPayment(ctx router.Context) {
 	a.CreatedBy = ctx.UserID()
 	ref, err := m.RefundPayment(a)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	_ = ctx.Encode(&ref)
@@ -232,7 +212,7 @@ func (m *Module) opListRefunds(ctx router.Context) {
 	}
 	refunds, err := m.ListRefunds(a.TenantId, a.PaymentId)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	list := make(RefundList, len(refunds))
@@ -250,7 +230,7 @@ func (m *Module) opStartTerminalPayment(ctx router.Context) {
 	a.CreatedBy = ctx.UserID()
 	p, err := m.StartTerminalPayment(a)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	_ = ctx.Encode(public(p))
@@ -263,7 +243,7 @@ func (m *Module) opRefreshTerminalPayment(ctx router.Context) {
 	}
 	p, err := m.RefreshTerminalPayment(a.TenantId, a.Id)
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	_ = ctx.Encode(public(p))
@@ -276,7 +256,7 @@ func (m *Module) opReconcilePayments(ctx router.Context) {
 	}
 	closed, err := m.ReconcilePayments(a.TenantId, time.NowUnix())
 	if err != nil {
-		writeError(ctx, err)
+		rpc.WriteError(ctx, err)
 		return
 	}
 	_ = ctx.Encode(&ReconcileResult{Closed: int64(closed)})
