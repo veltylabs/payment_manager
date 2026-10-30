@@ -50,7 +50,7 @@ A module's **non-test** Go files may import, from `github.com/webtyp/*`:
 | `events` | `Publisher`/`Subscriber`/`Event` | Pub/sub contract; the broker (in-proc, `sse`, a queue) is injected |
 | `orm` | `*orm.DB`, query builder (`Create`/`Update`/`Delete`/`Query`) | Ergonomic layer over `storage.Conn` — the equivalent of `database/sql`, backend-agnostic by construction |
 | `storage` | `Conn`/`Condition`/`Query` (mostly transitive, via `orm`'s re-exports in `reexport.go`) | The actual storage **port** — `orm` never redefines it |
-| `ddl` | `CreateTable`/`Sync` (runtime schema) | Sibling of `orm` over `storage.Conn` — still backend-agnostic |
+| `ddl` | `Sync` (runtime schema) | Sibling of `orm` over `storage.Conn` — still backend-agnostic |
 | `form/input` | `input.Text()`, `input.Number()`, … (`Kind` with a UI widget) | Only when a `model.Definition` field needs a widget for a form; still just a `Kind`, no renderer |
 | `fmt` | string/number/error handling, `Err(...)` | The ecosystem's stdlib replacement — see the stdlib section below |
 | `time` | date/time helpers | The ecosystem's `time` replacement (isomorphic, wasm-safe) |
