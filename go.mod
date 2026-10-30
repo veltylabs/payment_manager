@@ -16,8 +16,8 @@ require (
 	webtyp.com/model v0.2.12
 	webtyp.com/money v0.2.0
 	webtyp.com/orm v0.12.20
-	webtyp.com/router v0.4.12
-	webtyp.com/rpc v0.2.7
+	webtyp.com/router v0.4.16
+	webtyp.com/rpc v0.2.14
 	webtyp.com/storage v0.1.10
 	webtyp.com/svg v0.3.30
 	webtyp.com/time v0.6.2
