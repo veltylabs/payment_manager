@@ -10,7 +10,7 @@ require (
 	webtyp.com/events v0.1.0
 	webtyp.com/fmt v1.0.0
 	webtyp.com/html v0.0.30
-	webtyp.com/input v0.0.33
+	webtyp.com/input v0.0.36
 	webtyp.com/json v0.5.37
 	webtyp.com/lang v0.1.13
 	webtyp.com/model v0.2.12
