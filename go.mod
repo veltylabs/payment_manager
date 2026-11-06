@@ -5,7 +5,7 @@ go 1.26.8
 require (
 	webtyp.com/components v0.8.63
 	webtyp.com/css v0.4.31
-	webtyp.com/ddl v0.0.39
+	webtyp.com/ddl v0.0.46
 	webtyp.com/dom v0.13.29
 	webtyp.com/events v0.1.0
 	webtyp.com/fmt v1.0.0
