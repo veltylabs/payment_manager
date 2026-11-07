@@ -10,9 +10,9 @@ import (
 	"webtyp.com/router"
 	"webtyp.com/router/mock"
 	"webtyp.com/storage"
+	"webtyp.com/view"
 
 	pm "github.com/veltylabs/payment_manager"
-	tm "webtyp.com/time"
 )
 
 // opRouter monta el módulo en un router/mock con una identidad que tiene todos
@@ -118,7 +118,7 @@ func TestOps_HappyPaths(t *testing.T) {
 	if st, body := call(r, pm.OpListPaymentsByReference, encode(t, &pm.ListPaymentsByReferenceArgs{TenantId: tenant, ReferenceModule: refModule, ReferenceId: refID})); st != 200 || !fmt.Contains(body, `"p1"`) {
 		t.Errorf("list_payments_by_reference: %d %s", st, body)
 	}
-	if st, body := call(r, pm.OpListPayments, encode(t, &pm.ListPaymentsArgs{TenantId: tenant, From: 1, To: int64(tm.NowUnix()) + 60})); st != 200 || !fmt.Contains(body, `"p2"`) {
+	if st, body := call(r, pm.OpListPayments, encode(t, &view.ListArgs{Limit: 50})); st != 200 || !fmt.Contains(body, `"p2"`) {
 		t.Errorf("list_payments: %d %s", st, body)
 	}
 	f := refundArgs("f1", "p1", 100)
@@ -140,7 +140,7 @@ func TestOps_NoProviderTokenInResponses(t *testing.T) {
 	for _, c := range []struct{ op, body string }{
 		{pm.OpGetPayment, encode(t, &pm.GetPaymentArgs{TenantId: tenant, Id: "p1"})},
 		{pm.OpListPaymentsByReference, encode(t, &pm.ListPaymentsByReferenceArgs{TenantId: tenant, ReferenceModule: refModule, ReferenceId: refID})},
-		{pm.OpListPayments, encode(t, &pm.ListPaymentsArgs{TenantId: tenant, From: 1, To: int64(tm.NowUnix()) + 60})},
+		{pm.OpListPayments, encode(t, &view.ListArgs{Limit: 50})},
 	} {
 		st, body := call(r, c.op, c.body)
 		if st != 200 || fmt.Contains(body, "provider_token") || fmt.Contains(body, "sbx-") {
@@ -170,6 +170,9 @@ func TestOps_BadBodyAndInvalidArgs(t *testing.T) {
 	for _, op := range ops {
 		if st, _ := call(r, op, `{`); st != 400 {
 			t.Errorf("%s with a broken body: %d, want 400", op, st)
+		}
+		if op == pm.OpListPayments || op == pm.OpReconcilePayments {
+			continue // no required args from request
 		}
 		if st, _ := call(r, op, `{}`); st != 400 {
 			t.Errorf("%s with missing required args: %d, want 400", op, st)
@@ -202,7 +205,7 @@ func TestOps_ErrorStatusTable(t *testing.T) {
 	e.conn.failOn(tPayment, storage.ActionReadAll, 0)
 	for _, c := range []struct{ op, body string }{
 		{pm.OpListPaymentsByReference, encode(t, &pm.ListPaymentsByReferenceArgs{TenantId: tenant, ReferenceModule: refModule, ReferenceId: refID})},
-		{pm.OpListPayments, encode(t, &pm.ListPaymentsArgs{TenantId: tenant, From: 1, To: 2})},
+		{pm.OpListPayments, encode(t, &view.ListArgs{Limit: 50})},
 		{pm.OpReconcilePayments, encode(t, &pm.ReconcilePaymentsArgs{TenantId: tenant})},
 	} {
 		if st, _ := call(r, c.op, c.body); st != 500 {
@@ -225,6 +228,28 @@ func TestOps_DeniedWithoutIdentity(t *testing.T) {
 	r.Invoke("OP", "/"+pm.OpGetCharge, ctx)
 	if ctx.Status != 403 {
 		t.Fatalf("status %d, want 403", ctx.Status)
+	}
+}
+
+func TestOps_ListAcceptsListArgs(t *testing.T) {
+	e := newEnv(t)
+	e.paidCounter(t, "p1", refID)
+	e.paidOnline(t, "p2", "r2")
+	r := opRouter(e)
+
+	st, body := call(r, pm.OpListPayments, encode(t, &view.ListArgs{Limit: 1}))
+	if st != 200 || !fmt.Contains(body, `"p1"`) || fmt.Contains(body, `"p2"`) {
+		t.Errorf("list_payments with limit: 1 -> %d %s", st, body)
+	}
+
+	st, body = call(r, pm.OpListPayments, encode(t, &view.ListArgs{Search: "25000"}))
+	if st != 200 || !fmt.Contains(body, `"p1"`) {
+		t.Errorf("list_payments with search: 25000 -> %d %s", st, body)
+	}
+
+	st, body = call(r, pm.OpListPayments, encode(t, &view.ListArgs{After: "p1"}))
+	if st != 200 || fmt.Contains(body, `"p1"`) || !fmt.Contains(body, `"p2"`) {
+		t.Errorf("list_payments with after: p1 -> %d %s", st, body)
 	}
 }
 

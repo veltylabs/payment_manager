@@ -1,6 +1,7 @@
 package paymentmanager
 
 import (
+	"strconv"
 	"webtyp.com/model"
 	"webtyp.com/orm"
 )
@@ -49,6 +50,22 @@ func (r *repository) paymentsByDateRange(tenantId string, from, to int64) ([]Pay
 		Where(Payment_.TenantId).Eq(tenantId).
 		Where(Payment_.CreatedAt).Gte(from).
 		Where(Payment_.CreatedAt).Lt(to))
+}
+
+func (r *repository) paymentsPaged(tenantId, search, after string, limit int64) ([]Payment, error) {
+	qb := r.db.Query(&Payment{}).Where(Payment_.TenantId).Eq(tenantId)
+	if search != "" {
+		intVal, err := strconv.ParseInt(search, 10, 64)
+		if err != nil {
+			return []Payment{}, nil
+		}
+		qb = qb.Where(Payment_.Amount).Eq(intVal)
+	}
+	if after != "" {
+		qb = qb.Where(Payment_.Id).Gt(after)
+	}
+	qb = qb.OrderBy(Payment_.Id).Asc().Limit(int(limit))
+	return readAllPayments(qb)
 }
 
 func (r *repository) oldPendingPayments(tenantId string, channel string, before int64) ([]Payment, error) {

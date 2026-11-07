@@ -4,6 +4,7 @@ import (
 	"webtyp.com/model"
 	"webtyp.com/router"
 	"webtyp.com/time"
+	"webtyp.com/view"
 	"webtyp.com/rpc"
 )
 
@@ -50,7 +51,7 @@ func (m *Module) MountOperations(reg router.OperationRegistry) {
 	reg.Operation(OpGetPaymentStatus, m.opGetPaymentStatus).Requires(ResourcePaymentOnline, model.Read).Accepts(&GetPaymentArgs{})
 	reg.Operation(OpGetPayment, m.opGetPayment).Requires(ResourcePayment, model.Read).Accepts(&GetPaymentArgs{})
 	reg.Operation(OpListPaymentsByReference, m.opListPaymentsByReference).Requires(ResourcePayment, model.Read).Accepts(&ListPaymentsByReferenceArgs{})
-	reg.Operation(OpListPayments, m.opListPayments).Requires(ResourcePayment, model.Read).Accepts(&ListPaymentsArgs{})
+	reg.Operation(OpListPayments, m.opListPayments).Requires(ResourcePayment, model.Read).Accepts(&view.ListArgs{})
 	reg.Operation(OpRefundPayment, m.opRefundPayment).Requires(ResourceRefund, model.Create).Accepts(&RefundPaymentArgs{})
 	reg.Operation(OpListRefunds, m.opListRefunds).Requires(ResourceRefund, model.Read).Accepts(&ListRefundsArgs{})
 	reg.Operation(OpStartTerminalPayment, m.opStartTerminalPayment).Requires(ResourcePayment, model.Create).Accepts(&StartTerminalPaymentArgs{})
@@ -91,7 +92,13 @@ func publicList(payments []Payment) *PaymentList {
 
 func (m *Module) opGetCharge(ctx router.Context) {
 	var a GetChargeArgs
-	if !decode(ctx, &a, model.ActionRead) {
+	if err := ctx.Decode(&a); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	a.TenantId = m.tenantID
+	if err := a.Validate(model.ActionRead); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	amount, currency, err := m.Due(a.TenantId, a.ReferenceModule, a.ReferenceId)
@@ -107,7 +114,13 @@ func (m *Module) opGetCharge(ctx router.Context) {
 
 func (m *Module) opCreateCounterPayment(ctx router.Context) {
 	var a CreateCounterPaymentArgs
-	if !decode(ctx, &a, model.ActionCreate) {
+	if err := ctx.Decode(&a); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	a.TenantId = m.tenantID
+	if err := a.Validate(model.ActionCreate); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	a.CreatedBy = ctx.UserID()
@@ -121,7 +134,13 @@ func (m *Module) opCreateCounterPayment(ctx router.Context) {
 
 func (m *Module) opStartOnlinePayment(ctx router.Context) {
 	var a StartOnlinePaymentArgs
-	if !decode(ctx, &a, model.ActionCreate) {
+	if err := ctx.Decode(&a); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	a.TenantId = m.tenantID
+	if err := a.Validate(model.ActionCreate); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	a.CreatedBy = ctx.UserID()
@@ -135,7 +154,13 @@ func (m *Module) opStartOnlinePayment(ctx router.Context) {
 
 func (m *Module) opGetPaymentStatus(ctx router.Context) {
 	var a GetPaymentArgs
-	if !decode(ctx, &a, model.ActionRead) {
+	if err := ctx.Decode(&a); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	a.TenantId = m.tenantID
+	if err := a.Validate(model.ActionRead); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	p, err := m.GetPayment(a.TenantId, a.Id)
@@ -148,7 +173,13 @@ func (m *Module) opGetPaymentStatus(ctx router.Context) {
 
 func (m *Module) opGetPayment(ctx router.Context) {
 	var a GetPaymentArgs
-	if !decode(ctx, &a, model.ActionRead) {
+	if err := ctx.Decode(&a); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	a.TenantId = m.tenantID
+	if err := a.Validate(model.ActionRead); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	p, err := m.GetPayment(a.TenantId, a.Id)
@@ -161,7 +192,13 @@ func (m *Module) opGetPayment(ctx router.Context) {
 
 func (m *Module) opListPaymentsByReference(ctx router.Context) {
 	var a ListPaymentsByReferenceArgs
-	if !decode(ctx, &a, model.ActionRead) {
+	if err := ctx.Decode(&a); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	a.TenantId = m.tenantID
+	if err := a.Validate(model.ActionRead); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	list, err := m.ListPaymentsByReference(a.TenantId, a.ReferenceModule, a.ReferenceId)
@@ -173,27 +210,32 @@ func (m *Module) opListPaymentsByReference(ctx router.Context) {
 }
 
 func (m *Module) opListPayments(ctx router.Context) {
-	var a ListPaymentsArgs
-	if !decode(ctx, &a, model.ActionRead) {
+	var a view.ListArgs
+	if err := ctx.Decode(&a); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
-	from, to := a.From, a.To
-	if from == 0 && to == 0 {
-		now := int64(time.NowUnix())
-		from = now - int64(ListWindowSeconds)
-		to = now + 1
-	}
-	list, err := m.ListPayments(a.TenantId, time.Unix(from), time.Unix(to))
+	list, err := m.listPaymentsPaged(m.tenantID, a.Search, a.After, view.Cap(a.Limit))
 	if err != nil {
 		rpc.WriteError(ctx, err)
 		return
 	}
-	_ = ctx.Encode(publicList(list))
+	res := make(PaymentList, 0, len(list))
+	for i := range list {
+		res = append(res, public(list[i]))
+	}
+	_ = ctx.Encode(&res)
 }
 
 func (m *Module) opRefundPayment(ctx router.Context) {
 	var a RefundPaymentArgs
-	if !decode(ctx, &a, model.ActionCreate) {
+	if err := ctx.Decode(&a); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	a.TenantId = m.tenantID
+	if err := a.Validate(model.ActionCreate); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	a.CreatedBy = ctx.UserID()
@@ -207,7 +249,13 @@ func (m *Module) opRefundPayment(ctx router.Context) {
 
 func (m *Module) opListRefunds(ctx router.Context) {
 	var a ListRefundsArgs
-	if !decode(ctx, &a, model.ActionRead) {
+	if err := ctx.Decode(&a); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	a.TenantId = m.tenantID
+	if err := a.Validate(model.ActionRead); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	refunds, err := m.ListRefunds(a.TenantId, a.PaymentId)
@@ -224,7 +272,13 @@ func (m *Module) opListRefunds(ctx router.Context) {
 
 func (m *Module) opStartTerminalPayment(ctx router.Context) {
 	var a StartTerminalPaymentArgs
-	if !decode(ctx, &a, model.ActionCreate) {
+	if err := ctx.Decode(&a); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	a.TenantId = m.tenantID
+	if err := a.Validate(model.ActionCreate); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	a.CreatedBy = ctx.UserID()
@@ -238,7 +292,13 @@ func (m *Module) opStartTerminalPayment(ctx router.Context) {
 
 func (m *Module) opRefreshTerminalPayment(ctx router.Context) {
 	var a GetPaymentArgs
-	if !decode(ctx, &a, model.ActionUpdate) {
+	if err := ctx.Decode(&a); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	a.TenantId = m.tenantID
+	if err := a.Validate(model.ActionUpdate); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	p, err := m.RefreshTerminalPayment(a.TenantId, a.Id)
@@ -251,7 +311,13 @@ func (m *Module) opRefreshTerminalPayment(ctx router.Context) {
 
 func (m *Module) opReconcilePayments(ctx router.Context) {
 	var a ReconcilePaymentsArgs
-	if !decode(ctx, &a, model.ActionUpdate) {
+	if err := ctx.Decode(&a); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
+		return
+	}
+	a.TenantId = m.tenantID
+	if err := a.Validate(model.ActionUpdate); err != nil {
+		rpc.WriteError(ctx, ErrCannotRead)
 		return
 	}
 	closed, err := m.ReconcilePayments(a.TenantId, time.NowUnix())
