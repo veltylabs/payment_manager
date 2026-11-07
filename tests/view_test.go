@@ -24,9 +24,9 @@ func TestView_ListsRecentPayments(t *testing.T) {
 	e.paidCounter(t, "p1", refID)
 	presenter := pm.NewView(loopback.WithTenant(tenant, e.m))
 	var got error = errSimulated
-	presenter.Reload(func(err error) { got = err })
+	presenter.Search("", func(err error) { got = err })
 	if got != nil {
-		t.Fatalf("Reload: %v", got)
+		t.Fatalf("Search: %v", got)
 	}
 	items := presenter.Items()
 	if len(items) != 1 || items[0].ID != "p1" {
@@ -42,7 +42,7 @@ func TestView_ListsRecentPayments(t *testing.T) {
 
 func TestView_ListErrorPropagates(t *testing.T) {
 	var got error
-	pm.NewView(errCaller{}).Reload(func(err error) { got = err })
+	pm.NewView(errCaller{}).Search("", func(err error) { got = err })
 	if got != errSimulated {
 		t.Fatalf("err = %v", got)
 	}

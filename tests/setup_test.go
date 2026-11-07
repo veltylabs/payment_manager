@@ -144,7 +144,7 @@ func build(t *testing.T, withGateway bool, withTerminal bool) *env {
 		charge: &fakeCharge{amount: 25000, currency: pm.CurrencyCLP, payable: true},
 		conn:   &failingConn{Conn: mem.New()},
 	}
-	deps := pm.Deps{Publisher: e.pub, Charges: []pm.ChargeSource{{Module: refModule, Reader: e.charge}}}
+	deps := pm.Deps{TenantID: tenant, Publisher: e.pub, Charges: []pm.ChargeSource{{Module: refModule, Reader: e.charge}}}
 	if withTerminal {
 		e.term = sandbox.NewTerminal()
 		deps.Terminal = e.term

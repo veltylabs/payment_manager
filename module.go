@@ -21,6 +21,7 @@ const (
 
 // Deps son las dependencias que inyecta la raíz de composición.
 type Deps struct {
+	TenantID  string           // requerido: el tenant al que sirve esta instancia
 	Publisher events.Publisher // opcional — nil desactiva la publicación
 	Gateway   Gateway          // opcional — nil: el canal online responde ErrGatewayUnavailable
 	Charges   []ChargeSource   // requerido: quién responde el monto de cada módulo de referencia
@@ -39,6 +40,7 @@ type Module struct {
 	term      Terminal
 	receiptMu sync.Mutex
 	bank      BankDays
+	tenantID  string
 }
 
 // New conecta el módulo a un *orm.DB ya migrado (ver el subpaquete migrate).
@@ -59,13 +61,14 @@ func New(db *orm.DB, deps Deps) (*Module, error) {
 		return nil, fmt.Err("payment_manager: Deps.BankDays is required when an adapter implements PayoutTerms")
 	}
 	return &Module{
-		db:      db,
-		repo:    &repository{db: db},
-		pub:     deps.Publisher,
-		gw:      deps.Gateway,
-		charges: deps.Charges,
-		term:    deps.Terminal,
-		bank:    deps.BankDays,
+		db:       db,
+		repo:     &repository{db: db},
+		pub:      deps.Publisher,
+		gw:       deps.Gateway,
+		charges:  deps.Charges,
+		term:     deps.Terminal,
+		bank:     deps.BankDays,
+		tenantID: deps.TenantID,
 	}, nil
 }
 
@@ -638,6 +641,11 @@ func (m *Module) ListPaymentsByReference(tenantId, referenceModule, referenceId 
 // ListPayments lista los pagos creados en [from, to) (segundos).
 func (m *Module) ListPayments(tenantId string, from, to time.Unix) ([]Payment, error) {
 	return m.repo.paymentsByDateRange(tenantId, int64(from), int64(to))
+}
+
+// listPaymentsPaged lista pagos paginados, buscando opcionalmente por monto (búsqueda estricta).
+func (m *Module) listPaymentsPaged(tenantId, search, after string, limit int64) ([]Payment, error) {
+	return m.repo.paymentsPaged(tenantId, search, after, limit)
 }
 
 // ListRefunds lista las devoluciones de un pago.
