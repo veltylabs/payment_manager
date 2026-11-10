@@ -27,7 +27,7 @@ A domain module: business rules for one concern, published as its own Go library
 transport, a database and a renderer it never names. These rules apply to every `veltylabs/modules/*` repo.
 
 - **Tables:** each table's `model.Definition` declares `Allow` (`model.Create | model.Read | …`; zero = not offered).
-  `ormc` generates `Mount<Entity>(reg, store, <Entity>Rules{…})`; `ops.go` calls it once per offered table. The module
+  `definitionc` generates `Mount<Entity>(reg, store, <Entity>Rules{…})`; `ops.go` calls it once per offered table. The module
   never writes persistence: id, `tenant_id`, timestamps, the transaction, partial update by `fields`, «not found», paging
   and schema checks are done by `crud` with the store (`orm.TenantStore(db, tenantID, ids)`, or `orm.GlobalStore` for a
   table without `tenant_id`). Domain rules live in `rules.go` as per-record hooks (`Create`, `Update(old, next, fields)`,
