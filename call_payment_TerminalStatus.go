@@ -5,13 +5,13 @@ import (
 	"webtyp.com/time"
 )
 
-// call_payment_terminal_status.go — RetryInBackground: polls until the machine answers or the window ends
+// call_payment_terminal_status.go — RetryInBackground: consulta hasta que la máquina responda o termine el período
 func (p *Payment) TerminalStatus(a crud.CurrentUser, m *Module, key crud.IdempotencyKey) (crud.FieldsToSave, error) {
 	if p.Status != StatusPending {
 		return nil, nil
 	}
 	if int64(time.NowUnix()-p.CreatedAt) > m.timeouts.TerminalPayWindowSeconds {
-		return nil, nil // window over: it stays pending and the manual confirmation is offered
+		return nil, nil // período terminado: se mantiene pendiente y se ofrece confirmación manual
 	}
 	if p.ProviderToken == "" {
 		return nil, ErrTerminalUnreachable

@@ -29,6 +29,7 @@ var transitions = []transition{
 
 // Transition devuelve el estado al que lleva event desde current, o
 // ErrInvalidTransition.
+// Ejemplo: _ = Transition()
 func Transition(current, event string) (string, error) {
 	for _, t := range transitions {
 		if t.from == current && t.event == event {

@@ -3,13 +3,32 @@
 
 Módulo de dominio para registrar pagos de mesón (efectivo, débito, crédito, transferencia) y pagos online (Webpay Plus, vía una pasarela inyectada). Maneja devoluciones y la conciliación con la pasarela. Diseño: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); flujos y ramas probadas: [docs/diagrams/flows.md](docs/diagrams/flows.md).
 
-## Inicio rápido
+## ¿Por qué existe?
+
+Este módulo gestiona la persistencia, estados y conciliación de pagos. Centraliza los cobros para cualquier otro módulo de dominio, separando la lógica de pago de la lógica de negocio del módulo que lo solicita.
+
+## Antes de comenzar
 
 En la raíz del repo, abre la demo (pantalla Pagos y un paso de cobro de mesón, con la pasarela en memoria `sandbox`):
 
 ```bash
 webtyp
 ```
+
+## Guía paso a paso
+
+1. Iniciar la demo local.
+2. Inyectar en una aplicación con `paymentmanager.New`.
+3. Ejecutar las migraciones desde el `cmd/migrate` de la app.
+4. Integrar componentes de UI como `ui.PaymentStep` en otras pantallas.
+
+## Mapa de documentación
+
+- [Arquitectura](docs/ARCHITECTURE.md)
+- [Base de datos](docs/diagrams/database.md)
+- [Flujos](docs/diagrams/flows.md)
+- [Ubicación](docs/diagrams/PLACEMENT.md)
+- [Pruebas](docs/TESTS.md)
 
 ## Operaciones
 
@@ -61,7 +80,7 @@ pm, err := paymentmanager.New(db, paymentmanager.Deps{
 
 Este módulo publica [hechos económicos](https://github.com/webtyp/money) (`money.Fact`) usando la dependencia `webtyp.com/money`. Cuando un pago es completado exitosamente o una devolución es registrada, se publican hechos `Charged` y `Refunded` (respectivamente) sobre el `events.Publisher` configurado en `Deps.Publisher`. El `Scope` corresponde al módulo que pidió el cobro (`ReferenceModule`). La contabilidad y seguimiento de caja quedan fuera de `payment_manager` y se realizan en otro lado suscribiéndose a estos hechos (`money.Subscribe`).
 
-## Archivos clave
+## Mapa de documentación (código fuente)
 
 | Archivo | Qué contiene |
 |---|---|

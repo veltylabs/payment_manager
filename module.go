@@ -20,6 +20,7 @@ const (
 )
 
 // Deps son las dependencias que inyecta la raíz de composición.
+// Ejemplo: var _ Deps
 type Deps struct {
 	IDs       model.IDGenerator
 	Timeouts  Timeouts
@@ -32,6 +33,7 @@ type Deps struct {
 }
 
 // Module registra, confirma y devuelve pagos.
+// Ejemplo: var _ Module
 type Module struct {
 	timeouts  Timeouts
 	store     *orm.Store
@@ -48,6 +50,7 @@ type Module struct {
 }
 
 // New conecta el módulo a un *orm.DB ya migrado (ver el subpaquete migrate).
+// Ejemplo: _ = New()
 func New(db *orm.DB, deps Deps) (*Module, error) {
 	if deps.IDs == nil {
 		return nil, fmt.Err("payment_manager: Deps.IDs is required")

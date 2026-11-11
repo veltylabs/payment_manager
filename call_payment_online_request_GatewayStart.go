@@ -2,7 +2,7 @@ package paymentmanager
 
 import "webtyp.com/crud"
 
-// call_online_payment_request_gateway_start.go — WaitForReply; the create's response carries what is set here
+// call_online_payment_request_gateway_start.go — WaitForReply; la respuesta del create lleva lo que se establece aquí
 func (p *OnlinePaymentRequest) GatewayStart(a crud.CurrentUser, m *Module, key crud.IdempotencyKey) (crud.FieldsToSave, error) {
 	pay, err := m.repo.paymentById(p.TenantId, p.PaymentId)
 	if err != nil {

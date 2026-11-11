@@ -4,6 +4,7 @@ import "webtyp.com/time"
 
 // Terminal es la máquina de cobro con tarjeta de una caja. La implementación concreta (por ejemplo
 // github.com/veltylabs/tuu) la inyecta la app; sus llamadas son síncronas y solo corren en el servidor.
+// Ejemplo: var _ Terminal
 type Terminal interface {
 	Provider() string                              // nombre del procesador; se guarda en cada pago ("tuu")
 	Push(req TerminalPush) (TerminalPushed, error) // envía el monto a la máquina; idempotente por RequestId
@@ -34,6 +35,7 @@ type TerminalResult struct {
 // Gateway es la pasarela de pago en línea. La implementación (github.com/veltylabs/transbank,
 // github.com/veltylabs/tuu) la inyecta la app; verifica sola lo que le devuelve su procesador y llama a
 // CompleteOnlinePayment con el resultado ya verificado. Sus llamadas son síncronas y solo corren en el servidor.
+// Ejemplo: var _ Gateway
 type Gateway interface {
 	Provider() string
 	Start(req GatewayStart) (GatewayStarted, error)
@@ -53,6 +55,7 @@ type GatewayStart struct {
 }
 
 // Payer es quien paga en línea. Los campos pueden ir vacíos; un adaptador que los exige responde error.
+// Ejemplo: var _ Payer
 type Payer struct {
 	Name  string
 	Email string
@@ -107,6 +110,7 @@ type PayoutTerms interface {
 }
 
 // PayoutCharge es el cobro del que se pregunta el abono.
+// Ejemplo: var _ PayoutCharge
 type PayoutCharge struct {
 	Amount   int64
 	Currency string
@@ -116,6 +120,7 @@ type PayoutCharge struct {
 
 // Payout es lo que responde el adaptador: comisión, IVA de la comisión y días hábiles hasta el depósito.
 // El neto depositado es Amount − Fee − FeeTax.
+// Ejemplo: var _ Payout
 type Payout struct {
 	Fee          int64
 	FeeTax       int64
@@ -129,6 +134,7 @@ type BankDays interface {
 }
 
 // OnlineReturn identifies the payment a provider's return refers to. It carries no outcome: the module asks the gateway.
+// Ejemplo: var _ OnlineReturn
 type OnlineReturn struct {
 	PaymentId string // the buy order the provider echoes, when it sends one
 	Token     string // the provider token of the transaction, when it sends one
