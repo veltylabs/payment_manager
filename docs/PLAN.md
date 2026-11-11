@@ -193,3 +193,8 @@ func TestTerminal_Unreachable(t *testing.T) {
 ## Delivery check
 
 `gotest` passes on every destination; the five tests exist with their rows. Submit as soon as Stage 1 and the first test pass, then keep committing. A tree that does not compile or whose tests did not run is a failed delivery.
+
+
+## Executor notes
+- In `tests/rules_test.go`, the `Payment` creation in `payTerminal` was updated to include `Channel: paymentmanager.ChannelTerminal` and `Currency: "CLP"` because loopback complained they were required ("400 channel required" and "400 currency required").
+- In `tests/rules_test.go`, the `Deps.Charges` initialization in `newModule` was changed to conditionally set `Device: "POS-1"` only when `term != nil`, because `payment_manager` requires a `Terminal` when a `ChargeSource` names a `Device`.
