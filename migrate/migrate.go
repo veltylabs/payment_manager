@@ -10,5 +10,5 @@ import (
 
 // Migrate sincroniza las tablas payment y refund.
 func Migrate(conn ddl.Execer, c ddl.Compiler) error {
-	return ddl.New(conn, c).Sync(&paymentmanager.Payment{}, &paymentmanager.Refund{}, &paymentmanager.PaymentCounter{})
+	return ddl.New(conn, c).Sync(&paymentmanager.Payment{}, &paymentmanager.Refund{}, &paymentmanager.PaymentCounter{}, &paymentmanager.PaymentManualConfirmation{}, &paymentmanager.OnlinePaymentRequest{}, &paymentmanager.PaymentReconciliation{})
 }

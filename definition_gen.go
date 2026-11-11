@@ -5,6 +5,7 @@ package paymentmanager
 import (
 	"webtyp.com/model"
 	"webtyp.com/orm"
+	"webtyp.com/crud"
 	"webtyp.com/fmt"
 	"webtyp.com/time"
 )
@@ -36,6 +37,16 @@ type Payment struct {
 }
 
 func (m *Payment) ModelName() string { return "payment" }
+
+// PaymentTerminalPush is the ExternalCall type for payment.TerminalPush.
+type PaymentTerminalPush struct{}
+
+func (PaymentTerminalPush) ModelName() string { return "payment.TerminalPush" }
+
+// PaymentTerminalStatus is the ExternalCall type for payment.TerminalStatus.
+type PaymentTerminalStatus struct{}
+
+func (PaymentTerminalStatus) ModelName() string { return "payment.TerminalStatus" }
 
 func (m *Payment) Schema() []model.Field { return PaymentModel.Fields }
 
@@ -107,6 +118,9 @@ func (s *PaymentList) DecodeFields(_ model.FieldReader) {}
 func (m *Payment) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
+
+func (*Payment) Allow() model.Action     { return PaymentModel.Allow }
+func (*PaymentList) Allow() model.Action { return PaymentModel.Allow }
 
 func (m *Payment) Item() model.Item {
 	return model.Item{ID: m.Id, Label: fmt.Convert(m.Amount).String(), Description: model.JoinItem(m.ReferenceModule, m.ReferenceId, m.Method, m.Currency, m.Status)}
@@ -194,6 +208,11 @@ type Refund struct {
 
 func (m *Refund) ModelName() string { return "refund" }
 
+// RefundGatewayRefund is the ExternalCall type for refund.GatewayRefund.
+type RefundGatewayRefund struct{}
+
+func (RefundGatewayRefund) ModelName() string { return "refund.GatewayRefund" }
+
 func (m *Refund) Schema() []model.Field { return RefundModel.Fields }
 
 func (m *Refund) Pointers() []any { return []any{&m.Id, &m.TenantId, &m.PaymentId, &m.Amount, &m.Kind, &m.Method, &m.Reason, &m.AuthorizationCode, &m.CreatedBy, (*int64)(&m.CreatedAt)} }
@@ -238,6 +257,9 @@ func (s *RefundList) DecodeFields(_ model.FieldReader) {}
 func (m *Refund) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
+
+func (*Refund) Allow() model.Action     { return RefundModel.Allow }
+func (*RefundList) Allow() model.Action { return RefundModel.Allow }
 
 func (m *Refund) Item() model.Item {
 	return model.Item{ID: m.Id, Label: fmt.Convert(m.Amount).String()}
@@ -290,54 +312,6 @@ func (m *Refund) SchemaExt() []model.FieldExt {
 	}
 }
 
-type CreateCounterPaymentArgs struct {
-	TenantId string
-	Id string
-	ReferenceModule string
-	ReferenceId string
-	Method string
-	CreatedBy string
-}
-
-func (m *CreateCounterPaymentArgs) ModelName() string { return "create_counter_payment_args" }
-
-func (m *CreateCounterPaymentArgs) Schema() []model.Field { return CreateCounterPaymentArgsModel.Fields }
-
-func (m *CreateCounterPaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.ReferenceModule, &m.ReferenceId, &m.Method, &m.CreatedBy} }
-
-func (m *CreateCounterPaymentArgs) IsNil() bool { return m == nil }
-
-func (m *CreateCounterPaymentArgs) EncodeFields(w model.FieldWriter) {
-	w.String("tenant_id", m.TenantId)
-	w.String("id", m.Id)
-	w.String("reference_module", m.ReferenceModule)
-	w.String("reference_id", m.ReferenceId)
-	w.String("method", m.Method)
-	w.String("created_by", m.CreatedBy)
-}
-
-func (m *CreateCounterPaymentArgs) DecodeFields(r model.FieldReader) {
-	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
-	if v, ok := r.String("id"); ok { m.Id = v }
-	if v, ok := r.String("reference_module"); ok { m.ReferenceModule = v }
-	if v, ok := r.String("reference_id"); ok { m.ReferenceId = v }
-	if v, ok := r.String("method"); ok { m.Method = v }
-	if v, ok := r.String("created_by"); ok { m.CreatedBy = v }
-}
-
-type CreateCounterPaymentArgsList []*CreateCounterPaymentArgs
-
-func (s *CreateCounterPaymentArgsList) Len() int             { return len(*s) }
-func (s *CreateCounterPaymentArgsList) At(i int) model.Fielder { return (*s)[i] }
-func (s *CreateCounterPaymentArgsList) Append() model.Fielder  { v := &CreateCounterPaymentArgs{}; *s = append(*s, v); return v }
-func (s *CreateCounterPaymentArgsList) IsNil() bool          { return s == nil }
-func (s *CreateCounterPaymentArgsList) EncodeFields(_ model.FieldWriter) {}
-func (s *CreateCounterPaymentArgsList) DecodeFields(_ model.FieldReader) {}
-
-func (m *CreateCounterPaymentArgs) Validate(action byte) error {
-	return model.ValidateFields(action, m)
-}
-
 type PaymentCounter struct {
 	TenantId string
 	NextNumber int64
@@ -374,6 +348,9 @@ func (m *PaymentCounter) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
 
+func (*PaymentCounter) Allow() model.Action     { return PaymentCounterModel.Allow }
+func (*PaymentCounterList) Allow() model.Action { return PaymentCounterModel.Allow }
+
 var PaymentCounter_ = struct {
 	TenantId string
 	NextNumber string
@@ -399,143 +376,9 @@ func ReadAllPaymentCounter(qb *orm.QB) (PaymentCounterList, error) {
 	return results, err
 }
 
-type StartOnlinePaymentArgs struct {
-	TenantId string
-	Id string
-	ReferenceModule string
-	ReferenceId string
-	ReturnTo string
-	PayerName string
-	PayerEmail string
-	PayerPhone string
-	CreatedBy string
-}
-
-func (m *StartOnlinePaymentArgs) ModelName() string { return "start_online_payment_args" }
-
-func (m *StartOnlinePaymentArgs) Schema() []model.Field { return StartOnlinePaymentArgsModel.Fields }
-
-func (m *StartOnlinePaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.ReferenceModule, &m.ReferenceId, &m.ReturnTo, &m.PayerName, &m.PayerEmail, &m.PayerPhone, &m.CreatedBy} }
-
-func (m *StartOnlinePaymentArgs) IsNil() bool { return m == nil }
-
-func (m *StartOnlinePaymentArgs) EncodeFields(w model.FieldWriter) {
-	w.String("tenant_id", m.TenantId)
-	w.String("id", m.Id)
-	w.String("reference_module", m.ReferenceModule)
-	w.String("reference_id", m.ReferenceId)
-	w.String("return_to", m.ReturnTo)
-	w.String("payer_name", m.PayerName)
-	w.String("payer_email", m.PayerEmail)
-	w.String("payer_phone", m.PayerPhone)
-	w.String("created_by", m.CreatedBy)
-}
-
-func (m *StartOnlinePaymentArgs) DecodeFields(r model.FieldReader) {
-	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
-	if v, ok := r.String("id"); ok { m.Id = v }
-	if v, ok := r.String("reference_module"); ok { m.ReferenceModule = v }
-	if v, ok := r.String("reference_id"); ok { m.ReferenceId = v }
-	if v, ok := r.String("return_to"); ok { m.ReturnTo = v }
-	if v, ok := r.String("payer_name"); ok { m.PayerName = v }
-	if v, ok := r.String("payer_email"); ok { m.PayerEmail = v }
-	if v, ok := r.String("payer_phone"); ok { m.PayerPhone = v }
-	if v, ok := r.String("created_by"); ok { m.CreatedBy = v }
-}
-
-type StartOnlinePaymentArgsList []*StartOnlinePaymentArgs
-
-func (s *StartOnlinePaymentArgsList) Len() int             { return len(*s) }
-func (s *StartOnlinePaymentArgsList) At(i int) model.Fielder { return (*s)[i] }
-func (s *StartOnlinePaymentArgsList) Append() model.Fielder  { v := &StartOnlinePaymentArgs{}; *s = append(*s, v); return v }
-func (s *StartOnlinePaymentArgsList) IsNil() bool          { return s == nil }
-func (s *StartOnlinePaymentArgsList) EncodeFields(_ model.FieldWriter) {}
-func (s *StartOnlinePaymentArgsList) DecodeFields(_ model.FieldReader) {}
-
-func (m *StartOnlinePaymentArgs) Validate(action byte) error {
-	return model.ValidateFields(action, m)
-}
-
-type StartOnlinePaymentResult struct {
-	PaymentId string
-	RedirectUrl string
-	Token string
-	TokenField string
-}
-
-func (m *StartOnlinePaymentResult) ModelName() string { return "start_online_payment_result" }
-
-func (m *StartOnlinePaymentResult) Schema() []model.Field { return StartOnlinePaymentResultModel.Fields }
-
-func (m *StartOnlinePaymentResult) Pointers() []any { return []any{&m.PaymentId, &m.RedirectUrl, &m.Token, &m.TokenField} }
-
-func (m *StartOnlinePaymentResult) IsNil() bool { return m == nil }
-
-func (m *StartOnlinePaymentResult) EncodeFields(w model.FieldWriter) {
-	w.String("payment_id", m.PaymentId)
-	w.String("redirect_url", m.RedirectUrl)
-	w.String("token", m.Token)
-	w.String("token_field", m.TokenField)
-}
-
-func (m *StartOnlinePaymentResult) DecodeFields(r model.FieldReader) {
-	if v, ok := r.String("payment_id"); ok { m.PaymentId = v }
-	if v, ok := r.String("redirect_url"); ok { m.RedirectUrl = v }
-	if v, ok := r.String("token"); ok { m.Token = v }
-	if v, ok := r.String("token_field"); ok { m.TokenField = v }
-}
-
-type StartOnlinePaymentResultList []*StartOnlinePaymentResult
-
-func (s *StartOnlinePaymentResultList) Len() int             { return len(*s) }
-func (s *StartOnlinePaymentResultList) At(i int) model.Fielder { return (*s)[i] }
-func (s *StartOnlinePaymentResultList) Append() model.Fielder  { v := &StartOnlinePaymentResult{}; *s = append(*s, v); return v }
-func (s *StartOnlinePaymentResultList) IsNil() bool          { return s == nil }
-func (s *StartOnlinePaymentResultList) EncodeFields(_ model.FieldWriter) {}
-func (s *StartOnlinePaymentResultList) DecodeFields(_ model.FieldReader) {}
-
-func (m *StartOnlinePaymentResult) Validate(action byte) error {
-	return model.ValidateFields(action, m)
-}
-
-type GetPaymentArgs struct {
-	TenantId string
-	Id string
-}
-
-func (m *GetPaymentArgs) ModelName() string { return "get_payment_args" }
-
-func (m *GetPaymentArgs) Schema() []model.Field { return GetPaymentArgsModel.Fields }
-
-func (m *GetPaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id} }
-
-func (m *GetPaymentArgs) IsNil() bool { return m == nil }
-
-func (m *GetPaymentArgs) EncodeFields(w model.FieldWriter) {
-	w.String("tenant_id", m.TenantId)
-	w.String("id", m.Id)
-}
-
-func (m *GetPaymentArgs) DecodeFields(r model.FieldReader) {
-	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
-	if v, ok := r.String("id"); ok { m.Id = v }
-}
-
-type GetPaymentArgsList []*GetPaymentArgs
-
-func (s *GetPaymentArgsList) Len() int             { return len(*s) }
-func (s *GetPaymentArgsList) At(i int) model.Fielder { return (*s)[i] }
-func (s *GetPaymentArgsList) Append() model.Fielder  { v := &GetPaymentArgs{}; *s = append(*s, v); return v }
-func (s *GetPaymentArgsList) IsNil() bool          { return s == nil }
-func (s *GetPaymentArgsList) EncodeFields(_ model.FieldWriter) {}
-func (s *GetPaymentArgsList) DecodeFields(_ model.FieldReader) {}
-
-func (m *GetPaymentArgs) Validate(action byte) error {
-	return model.ValidateFields(action, m)
-}
-
 type PaymentStatusResult struct {
 	Id string
+	TenantId string
 	Status string
 }
 
@@ -543,17 +386,19 @@ func (m *PaymentStatusResult) ModelName() string { return "payment_status_result
 
 func (m *PaymentStatusResult) Schema() []model.Field { return PaymentStatusResultModel.Fields }
 
-func (m *PaymentStatusResult) Pointers() []any { return []any{&m.Id, &m.Status} }
+func (m *PaymentStatusResult) Pointers() []any { return []any{&m.Id, &m.TenantId, &m.Status} }
 
 func (m *PaymentStatusResult) IsNil() bool { return m == nil }
 
 func (m *PaymentStatusResult) EncodeFields(w model.FieldWriter) {
 	w.String("id", m.Id)
+	w.String("tenant_id", m.TenantId)
 	w.String("status", m.Status)
 }
 
 func (m *PaymentStatusResult) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("id"); ok { m.Id = v }
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
 	if v, ok := r.String("status"); ok { m.Status = v }
 }
 
@@ -570,46 +415,13 @@ func (m *PaymentStatusResult) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
 
-type GetChargeArgs struct {
+func (*PaymentStatusResult) Allow() model.Action     { return PaymentStatusResultModel.Allow }
+func (*PaymentStatusResultList) Allow() model.Action { return PaymentStatusResultModel.Allow }
+
+type ChargeResult struct {
 	TenantId string
 	ReferenceModule string
 	ReferenceId string
-}
-
-func (m *GetChargeArgs) ModelName() string { return "get_charge_args" }
-
-func (m *GetChargeArgs) Schema() []model.Field { return GetChargeArgsModel.Fields }
-
-func (m *GetChargeArgs) Pointers() []any { return []any{&m.TenantId, &m.ReferenceModule, &m.ReferenceId} }
-
-func (m *GetChargeArgs) IsNil() bool { return m == nil }
-
-func (m *GetChargeArgs) EncodeFields(w model.FieldWriter) {
-	w.String("tenant_id", m.TenantId)
-	w.String("reference_module", m.ReferenceModule)
-	w.String("reference_id", m.ReferenceId)
-}
-
-func (m *GetChargeArgs) DecodeFields(r model.FieldReader) {
-	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
-	if v, ok := r.String("reference_module"); ok { m.ReferenceModule = v }
-	if v, ok := r.String("reference_id"); ok { m.ReferenceId = v }
-}
-
-type GetChargeArgsList []*GetChargeArgs
-
-func (s *GetChargeArgsList) Len() int             { return len(*s) }
-func (s *GetChargeArgsList) At(i int) model.Fielder { return (*s)[i] }
-func (s *GetChargeArgsList) Append() model.Fielder  { v := &GetChargeArgs{}; *s = append(*s, v); return v }
-func (s *GetChargeArgsList) IsNil() bool          { return s == nil }
-func (s *GetChargeArgsList) EncodeFields(_ model.FieldWriter) {}
-func (s *GetChargeArgsList) DecodeFields(_ model.FieldReader) {}
-
-func (m *GetChargeArgs) Validate(action byte) error {
-	return model.ValidateFields(action, m)
-}
-
-type ChargeResult struct {
 	Amount int64
 	Currency string
 	Payable bool
@@ -620,11 +432,14 @@ func (m *ChargeResult) ModelName() string { return "charge_result" }
 
 func (m *ChargeResult) Schema() []model.Field { return ChargeResultModel.Fields }
 
-func (m *ChargeResult) Pointers() []any { return []any{&m.Amount, &m.Currency, &m.Payable, &m.Terminal} }
+func (m *ChargeResult) Pointers() []any { return []any{&m.TenantId, &m.ReferenceModule, &m.ReferenceId, &m.Amount, &m.Currency, &m.Payable, &m.Terminal} }
 
 func (m *ChargeResult) IsNil() bool { return m == nil }
 
 func (m *ChargeResult) EncodeFields(w model.FieldWriter) {
+	w.String("tenant_id", m.TenantId)
+	w.String("reference_module", m.ReferenceModule)
+	w.String("reference_id", m.ReferenceId)
 	w.Int("amount", m.Amount)
 	w.String("currency", m.Currency)
 	w.Bool("payable", m.Payable)
@@ -632,6 +447,9 @@ func (m *ChargeResult) EncodeFields(w model.FieldWriter) {
 }
 
 func (m *ChargeResult) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.String("reference_module"); ok { m.ReferenceModule = v }
+	if v, ok := r.String("reference_id"); ok { m.ReferenceId = v }
 	if v, ok := r.Int("amount"); ok { m.Amount = v }
 	if v, ok := r.String("currency"); ok { m.Currency = v }
 	if v, ok := r.Bool("payable"); ok { m.Payable = v }
@@ -651,202 +469,127 @@ func (m *ChargeResult) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
 
-type StartTerminalPaymentArgs struct {
-	TenantId string
+func (*ChargeResult) Allow() model.Action     { return ChargeResultModel.Allow }
+func (*ChargeResultList) Allow() model.Action { return ChargeResultModel.Allow }
+
+type OnlinePaymentRequest struct {
 	Id string
-	ReferenceModule string
-	ReferenceId string
-	Method string
-	CreatedBy string
-}
-
-func (m *StartTerminalPaymentArgs) ModelName() string { return "start_terminal_payment_args" }
-
-func (m *StartTerminalPaymentArgs) Schema() []model.Field { return StartTerminalPaymentArgsModel.Fields }
-
-func (m *StartTerminalPaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.ReferenceModule, &m.ReferenceId, &m.Method, &m.CreatedBy} }
-
-func (m *StartTerminalPaymentArgs) IsNil() bool { return m == nil }
-
-func (m *StartTerminalPaymentArgs) EncodeFields(w model.FieldWriter) {
-	w.String("tenant_id", m.TenantId)
-	w.String("id", m.Id)
-	w.String("reference_module", m.ReferenceModule)
-	w.String("reference_id", m.ReferenceId)
-	w.String("method", m.Method)
-	w.String("created_by", m.CreatedBy)
-}
-
-func (m *StartTerminalPaymentArgs) DecodeFields(r model.FieldReader) {
-	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
-	if v, ok := r.String("id"); ok { m.Id = v }
-	if v, ok := r.String("reference_module"); ok { m.ReferenceModule = v }
-	if v, ok := r.String("reference_id"); ok { m.ReferenceId = v }
-	if v, ok := r.String("method"); ok { m.Method = v }
-	if v, ok := r.String("created_by"); ok { m.CreatedBy = v }
-}
-
-type StartTerminalPaymentArgsList []*StartTerminalPaymentArgs
-
-func (s *StartTerminalPaymentArgsList) Len() int             { return len(*s) }
-func (s *StartTerminalPaymentArgsList) At(i int) model.Fielder { return (*s)[i] }
-func (s *StartTerminalPaymentArgsList) Append() model.Fielder  { v := &StartTerminalPaymentArgs{}; *s = append(*s, v); return v }
-func (s *StartTerminalPaymentArgsList) IsNil() bool          { return s == nil }
-func (s *StartTerminalPaymentArgsList) EncodeFields(_ model.FieldWriter) {}
-func (s *StartTerminalPaymentArgsList) DecodeFields(_ model.FieldReader) {}
-
-func (m *StartTerminalPaymentArgs) Validate(action byte) error {
-	return model.ValidateFields(action, m)
-}
-
-type ListPaymentsByReferenceArgs struct {
 	TenantId string
 	ReferenceModule string
 	ReferenceId string
-}
-
-func (m *ListPaymentsByReferenceArgs) ModelName() string { return "list_payments_by_reference_args" }
-
-func (m *ListPaymentsByReferenceArgs) Schema() []model.Field { return ListPaymentsByReferenceArgsModel.Fields }
-
-func (m *ListPaymentsByReferenceArgs) Pointers() []any { return []any{&m.TenantId, &m.ReferenceModule, &m.ReferenceId} }
-
-func (m *ListPaymentsByReferenceArgs) IsNil() bool { return m == nil }
-
-func (m *ListPaymentsByReferenceArgs) EncodeFields(w model.FieldWriter) {
-	w.String("tenant_id", m.TenantId)
-	w.String("reference_module", m.ReferenceModule)
-	w.String("reference_id", m.ReferenceId)
-}
-
-func (m *ListPaymentsByReferenceArgs) DecodeFields(r model.FieldReader) {
-	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
-	if v, ok := r.String("reference_module"); ok { m.ReferenceModule = v }
-	if v, ok := r.String("reference_id"); ok { m.ReferenceId = v }
-}
-
-type ListPaymentsByReferenceArgsList []*ListPaymentsByReferenceArgs
-
-func (s *ListPaymentsByReferenceArgsList) Len() int             { return len(*s) }
-func (s *ListPaymentsByReferenceArgsList) At(i int) model.Fielder { return (*s)[i] }
-func (s *ListPaymentsByReferenceArgsList) Append() model.Fielder  { v := &ListPaymentsByReferenceArgs{}; *s = append(*s, v); return v }
-func (s *ListPaymentsByReferenceArgsList) IsNil() bool          { return s == nil }
-func (s *ListPaymentsByReferenceArgsList) EncodeFields(_ model.FieldWriter) {}
-func (s *ListPaymentsByReferenceArgsList) DecodeFields(_ model.FieldReader) {}
-
-func (m *ListPaymentsByReferenceArgs) Validate(action byte) error {
-	return model.ValidateFields(action, m)
-}
-
-type ListPaymentsArgs struct {
-	TenantId string
-	From int64
-	To int64
-}
-
-func (m *ListPaymentsArgs) ModelName() string { return "list_payments_args" }
-
-func (m *ListPaymentsArgs) Schema() []model.Field { return ListPaymentsArgsModel.Fields }
-
-func (m *ListPaymentsArgs) Pointers() []any { return []any{&m.TenantId, &m.From, &m.To} }
-
-func (m *ListPaymentsArgs) IsNil() bool { return m == nil }
-
-func (m *ListPaymentsArgs) EncodeFields(w model.FieldWriter) {
-	w.String("tenant_id", m.TenantId)
-	if m.From != 0 { w.Int("from", m.From) }
-	if m.To != 0 { w.Int("to", m.To) }
-}
-
-func (m *ListPaymentsArgs) DecodeFields(r model.FieldReader) {
-	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
-	if v, ok := r.Int("from"); ok { m.From = v }
-	if v, ok := r.Int("to"); ok { m.To = v }
-}
-
-type ListPaymentsArgsList []*ListPaymentsArgs
-
-func (s *ListPaymentsArgsList) Len() int             { return len(*s) }
-func (s *ListPaymentsArgsList) At(i int) model.Fielder { return (*s)[i] }
-func (s *ListPaymentsArgsList) Append() model.Fielder  { v := &ListPaymentsArgs{}; *s = append(*s, v); return v }
-func (s *ListPaymentsArgsList) IsNil() bool          { return s == nil }
-func (s *ListPaymentsArgsList) EncodeFields(_ model.FieldWriter) {}
-func (s *ListPaymentsArgsList) DecodeFields(_ model.FieldReader) {}
-
-func (m *ListPaymentsArgs) Validate(action byte) error {
-	return model.ValidateFields(action, m)
-}
-
-type RefundPaymentArgs struct {
-	TenantId string
-	Id string
+	ReturnUrl string
 	PaymentId string
-	Amount int64
-	Reason string
-	Method string
-	CreatedBy string
+	RedirectUrl string
+	Status string
+	Failure string
+	CreatedAt time.Unix
+	PayerName string
+	PayerEmail string
+	PayerPhone string
+	Token string
+	TokenField string
 }
 
-func (m *RefundPaymentArgs) ModelName() string { return "refund_payment_args" }
+func (m *OnlinePaymentRequest) ModelName() string { return "payment_online_request" }
 
-func (m *RefundPaymentArgs) Schema() []model.Field { return RefundPaymentArgsModel.Fields }
+// OnlinePaymentRequestGatewayStart is the ExternalCall type for payment_online_request.GatewayStart.
+type OnlinePaymentRequestGatewayStart struct{}
 
-func (m *RefundPaymentArgs) Pointers() []any { return []any{&m.TenantId, &m.Id, &m.PaymentId, &m.Amount, &m.Reason, &m.Method, &m.CreatedBy} }
+func (OnlinePaymentRequestGatewayStart) ModelName() string { return "payment_online_request.GatewayStart" }
 
-func (m *RefundPaymentArgs) IsNil() bool { return m == nil }
+func (m *OnlinePaymentRequest) Schema() []model.Field { return OnlinePaymentRequestModel.Fields }
 
-func (m *RefundPaymentArgs) EncodeFields(w model.FieldWriter) {
-	w.String("tenant_id", m.TenantId)
+func (m *OnlinePaymentRequest) Pointers() []any { return []any{&m.Id, &m.TenantId, &m.ReferenceModule, &m.ReferenceId, &m.ReturnUrl, &m.PaymentId, &m.RedirectUrl, &m.Status, &m.Failure, (*int64)(&m.CreatedAt), &m.PayerName, &m.PayerEmail, &m.PayerPhone, &m.Token, &m.TokenField} }
+
+func (m *OnlinePaymentRequest) IsNil() bool { return m == nil }
+
+func (m *OnlinePaymentRequest) EncodeFields(w model.FieldWriter) {
 	w.String("id", m.Id)
+	w.String("tenant_id", m.TenantId)
+	w.String("reference_module", m.ReferenceModule)
+	w.String("reference_id", m.ReferenceId)
+	w.String("return_url", m.ReturnUrl)
 	w.String("payment_id", m.PaymentId)
-	w.Int("amount", m.Amount)
-	w.String("reason", m.Reason)
-	w.String("method", m.Method)
-	w.String("created_by", m.CreatedBy)
+	w.String("redirect_url", m.RedirectUrl)
+	w.String("status", m.Status)
+	w.String("failure", m.Failure)
+	w.Int("created_at", int64(m.CreatedAt))
+	w.String("payer_name", m.PayerName)
+	w.String("payer_email", m.PayerEmail)
+	w.String("payer_phone", m.PayerPhone)
+	w.String("token", m.Token)
+	w.String("token_field", m.TokenField)
 }
 
-func (m *RefundPaymentArgs) DecodeFields(r model.FieldReader) {
-	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+func (m *OnlinePaymentRequest) DecodeFields(r model.FieldReader) {
 	if v, ok := r.String("id"); ok { m.Id = v }
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.String("reference_module"); ok { m.ReferenceModule = v }
+	if v, ok := r.String("reference_id"); ok { m.ReferenceId = v }
+	if v, ok := r.String("return_url"); ok { m.ReturnUrl = v }
 	if v, ok := r.String("payment_id"); ok { m.PaymentId = v }
-	if v, ok := r.Int("amount"); ok { m.Amount = v }
-	if v, ok := r.String("reason"); ok { m.Reason = v }
-	if v, ok := r.String("method"); ok { m.Method = v }
-	if v, ok := r.String("created_by"); ok { m.CreatedBy = v }
+	if v, ok := r.String("redirect_url"); ok { m.RedirectUrl = v }
+	if v, ok := r.String("status"); ok { m.Status = v }
+	if v, ok := r.String("failure"); ok { m.Failure = v }
+	if v, ok := r.Int("created_at"); ok { m.CreatedAt = time.Unix(v) }
+	if v, ok := r.String("payer_name"); ok { m.PayerName = v }
+	if v, ok := r.String("payer_email"); ok { m.PayerEmail = v }
+	if v, ok := r.String("payer_phone"); ok { m.PayerPhone = v }
+	if v, ok := r.String("token"); ok { m.Token = v }
+	if v, ok := r.String("token_field"); ok { m.TokenField = v }
 }
 
-type RefundPaymentArgsList []*RefundPaymentArgs
+type OnlinePaymentRequestList []*OnlinePaymentRequest
 
-func (s *RefundPaymentArgsList) Len() int             { return len(*s) }
-func (s *RefundPaymentArgsList) At(i int) model.Fielder { return (*s)[i] }
-func (s *RefundPaymentArgsList) Append() model.Fielder  { v := &RefundPaymentArgs{}; *s = append(*s, v); return v }
-func (s *RefundPaymentArgsList) IsNil() bool          { return s == nil }
-func (s *RefundPaymentArgsList) EncodeFields(_ model.FieldWriter) {}
-func (s *RefundPaymentArgsList) DecodeFields(_ model.FieldReader) {}
+func (s *OnlinePaymentRequestList) Len() int             { return len(*s) }
+func (s *OnlinePaymentRequestList) At(i int) model.Fielder { return (*s)[i] }
+func (s *OnlinePaymentRequestList) Append() model.Fielder  { v := &OnlinePaymentRequest{}; *s = append(*s, v); return v }
+func (s *OnlinePaymentRequestList) IsNil() bool          { return s == nil }
+func (s *OnlinePaymentRequestList) EncodeFields(_ model.FieldWriter) {}
+func (s *OnlinePaymentRequestList) DecodeFields(_ model.FieldReader) {}
 
-func (m *RefundPaymentArgs) Validate(action byte) error {
+func (m *OnlinePaymentRequest) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
 
-var RefundPaymentArgs_ = struct {
-	TenantId string
+func (*OnlinePaymentRequest) Allow() model.Action     { return OnlinePaymentRequestModel.Allow }
+func (*OnlinePaymentRequestList) Allow() model.Action { return OnlinePaymentRequestModel.Allow }
+
+var OnlinePaymentRequest_ = struct {
 	Id string
+	TenantId string
+	ReferenceModule string
+	ReferenceId string
+	ReturnUrl string
 	PaymentId string
-	Amount string
-	Reason string
-	Method string
-	CreatedBy string
+	RedirectUrl string
+	Status string
+	Failure string
+	CreatedAt string
+	PayerName string
+	PayerEmail string
+	PayerPhone string
+	Token string
+	TokenField string
 }{
-	TenantId: "tenant_id",
 	Id: "id",
+	TenantId: "tenant_id",
+	ReferenceModule: "reference_module",
+	ReferenceId: "reference_id",
+	ReturnUrl: "return_url",
 	PaymentId: "payment_id",
-	Amount: "amount",
-	Reason: "reason",
-	Method: "method",
-	CreatedBy: "created_by",
+	RedirectUrl: "redirect_url",
+	Status: "status",
+	Failure: "failure",
+	CreatedAt: "created_at",
+	PayerName: "payer_name",
+	PayerEmail: "payer_email",
+	PayerPhone: "payer_phone",
+	Token: "token",
+	TokenField: "token_field",
 }
 
-func ReadOneRefundPaymentArgs(qb *orm.QB, model *RefundPaymentArgs) (*RefundPaymentArgs, error) {
+func ReadOneOnlinePaymentRequest(qb *orm.QB, model *OnlinePaymentRequest) (*OnlinePaymentRequest, error) {
 	err := qb.ReadOne()
 	if err != nil {
 		return nil, err
@@ -854,66 +597,182 @@ func ReadOneRefundPaymentArgs(qb *orm.QB, model *RefundPaymentArgs) (*RefundPaym
 	return model, nil
 }
 
-func ReadAllRefundPaymentArgs(qb *orm.QB) (RefundPaymentArgsList, error) {
-	var results RefundPaymentArgsList
+func ReadAllOnlinePaymentRequest(qb *orm.QB) (OnlinePaymentRequestList, error) {
+	var results OnlinePaymentRequestList
 	err := qb.ReadAll(
-		func() model.Model { return &RefundPaymentArgs{} },
-		func(m model.Model) { results = append(results, m.(*RefundPaymentArgs)) },
+		func() model.Model { return &OnlinePaymentRequest{} },
+		func(m model.Model) { results = append(results, m.(*OnlinePaymentRequest)) },
 	)
 	return results, err
 }
 
-func (m *RefundPaymentArgs) SchemaExt() []model.FieldExt {
-	return []model.FieldExt{
-		{Field: RefundPaymentArgsModel.Fields[2], Ref: "payment", RefColumn: "id", OnDelete: ""},
-	}
+type PaymentReconciliation struct {
+	Id string
+	TenantId string
+	Status string
+	Failure string
+	Reconciled int64
+	ActorId string
+	CreatedAt time.Unix
 }
 
-type ListRefundsArgs struct {
+func (m *PaymentReconciliation) ModelName() string { return "payment_reconciliation" }
+
+// PaymentReconciliationReconcile is the ExternalCall type for payment_reconciliation.Reconcile.
+type PaymentReconciliationReconcile struct{}
+
+func (PaymentReconciliationReconcile) ModelName() string { return "payment_reconciliation.Reconcile" }
+
+func (m *PaymentReconciliation) Schema() []model.Field { return PaymentReconciliationModel.Fields }
+
+func (m *PaymentReconciliation) Pointers() []any { return []any{&m.Id, &m.TenantId, &m.Status, &m.Failure, &m.Reconciled, &m.ActorId, (*int64)(&m.CreatedAt)} }
+
+func (m *PaymentReconciliation) IsNil() bool { return m == nil }
+
+func (m *PaymentReconciliation) EncodeFields(w model.FieldWriter) {
+	w.String("id", m.Id)
+	w.String("tenant_id", m.TenantId)
+	w.String("status", m.Status)
+	w.String("failure", m.Failure)
+	w.Int("reconciled", m.Reconciled)
+	w.String("actor_id", m.ActorId)
+	w.Int("created_at", int64(m.CreatedAt))
+}
+
+func (m *PaymentReconciliation) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("id"); ok { m.Id = v }
+	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
+	if v, ok := r.String("status"); ok { m.Status = v }
+	if v, ok := r.String("failure"); ok { m.Failure = v }
+	if v, ok := r.Int("reconciled"); ok { m.Reconciled = v }
+	if v, ok := r.String("actor_id"); ok { m.ActorId = v }
+	if v, ok := r.Int("created_at"); ok { m.CreatedAt = time.Unix(v) }
+}
+
+type PaymentReconciliationList []*PaymentReconciliation
+
+func (s *PaymentReconciliationList) Len() int             { return len(*s) }
+func (s *PaymentReconciliationList) At(i int) model.Fielder { return (*s)[i] }
+func (s *PaymentReconciliationList) Append() model.Fielder  { v := &PaymentReconciliation{}; *s = append(*s, v); return v }
+func (s *PaymentReconciliationList) IsNil() bool          { return s == nil }
+func (s *PaymentReconciliationList) EncodeFields(_ model.FieldWriter) {}
+func (s *PaymentReconciliationList) DecodeFields(_ model.FieldReader) {}
+
+func (m *PaymentReconciliation) Validate(action byte) error {
+	return model.ValidateFields(action, m)
+}
+
+func (*PaymentReconciliation) Allow() model.Action     { return PaymentReconciliationModel.Allow }
+func (*PaymentReconciliationList) Allow() model.Action { return PaymentReconciliationModel.Allow }
+
+var PaymentReconciliation_ = struct {
+	Id string
+	TenantId string
+	Status string
+	Failure string
+	Reconciled string
+	ActorId string
+	CreatedAt string
+}{
+	Id: "id",
+	TenantId: "tenant_id",
+	Status: "status",
+	Failure: "failure",
+	Reconciled: "reconciled",
+	ActorId: "actor_id",
+	CreatedAt: "created_at",
+}
+
+func ReadOnePaymentReconciliation(qb *orm.QB, model *PaymentReconciliation) (*PaymentReconciliation, error) {
+	err := qb.ReadOne()
+	if err != nil {
+		return nil, err
+	}
+	return model, nil
+}
+
+func ReadAllPaymentReconciliation(qb *orm.QB) (PaymentReconciliationList, error) {
+	var results PaymentReconciliationList
+	err := qb.ReadAll(
+		func() model.Model { return &PaymentReconciliation{} },
+		func(m model.Model) { results = append(results, m.(*PaymentReconciliation)) },
+	)
+	return results, err
+}
+
+type PaymentManualConfirmation struct {
+	Id string
 	TenantId string
 	PaymentId string
+	Note string
+	ActorId string
+	CreatedAt time.Unix
 }
 
-func (m *ListRefundsArgs) ModelName() string { return "list_refunds_args" }
+func (m *PaymentManualConfirmation) ModelName() string { return "payment_manual_confirmation" }
 
-func (m *ListRefundsArgs) Schema() []model.Field { return ListRefundsArgsModel.Fields }
+// PaymentManualConfirmationConfirm is the ExternalCall type for payment_manual_confirmation.Confirm.
+type PaymentManualConfirmationConfirm struct{}
 
-func (m *ListRefundsArgs) Pointers() []any { return []any{&m.TenantId, &m.PaymentId} }
+func (PaymentManualConfirmationConfirm) ModelName() string { return "payment_manual_confirmation.Confirm" }
 
-func (m *ListRefundsArgs) IsNil() bool { return m == nil }
+func (m *PaymentManualConfirmation) Schema() []model.Field { return PaymentManualConfirmationModel.Fields }
 
-func (m *ListRefundsArgs) EncodeFields(w model.FieldWriter) {
+func (m *PaymentManualConfirmation) Pointers() []any { return []any{&m.Id, &m.TenantId, &m.PaymentId, &m.Note, &m.ActorId, (*int64)(&m.CreatedAt)} }
+
+func (m *PaymentManualConfirmation) IsNil() bool { return m == nil }
+
+func (m *PaymentManualConfirmation) EncodeFields(w model.FieldWriter) {
+	w.String("id", m.Id)
 	w.String("tenant_id", m.TenantId)
 	w.String("payment_id", m.PaymentId)
+	w.String("note", m.Note)
+	w.String("actor_id", m.ActorId)
+	w.Int("created_at", int64(m.CreatedAt))
 }
 
-func (m *ListRefundsArgs) DecodeFields(r model.FieldReader) {
+func (m *PaymentManualConfirmation) DecodeFields(r model.FieldReader) {
+	if v, ok := r.String("id"); ok { m.Id = v }
 	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
 	if v, ok := r.String("payment_id"); ok { m.PaymentId = v }
+	if v, ok := r.String("note"); ok { m.Note = v }
+	if v, ok := r.String("actor_id"); ok { m.ActorId = v }
+	if v, ok := r.Int("created_at"); ok { m.CreatedAt = time.Unix(v) }
 }
 
-type ListRefundsArgsList []*ListRefundsArgs
+type PaymentManualConfirmationList []*PaymentManualConfirmation
 
-func (s *ListRefundsArgsList) Len() int             { return len(*s) }
-func (s *ListRefundsArgsList) At(i int) model.Fielder { return (*s)[i] }
-func (s *ListRefundsArgsList) Append() model.Fielder  { v := &ListRefundsArgs{}; *s = append(*s, v); return v }
-func (s *ListRefundsArgsList) IsNil() bool          { return s == nil }
-func (s *ListRefundsArgsList) EncodeFields(_ model.FieldWriter) {}
-func (s *ListRefundsArgsList) DecodeFields(_ model.FieldReader) {}
+func (s *PaymentManualConfirmationList) Len() int             { return len(*s) }
+func (s *PaymentManualConfirmationList) At(i int) model.Fielder { return (*s)[i] }
+func (s *PaymentManualConfirmationList) Append() model.Fielder  { v := &PaymentManualConfirmation{}; *s = append(*s, v); return v }
+func (s *PaymentManualConfirmationList) IsNil() bool          { return s == nil }
+func (s *PaymentManualConfirmationList) EncodeFields(_ model.FieldWriter) {}
+func (s *PaymentManualConfirmationList) DecodeFields(_ model.FieldReader) {}
 
-func (m *ListRefundsArgs) Validate(action byte) error {
+func (m *PaymentManualConfirmation) Validate(action byte) error {
 	return model.ValidateFields(action, m)
 }
 
-var ListRefundsArgs_ = struct {
+func (*PaymentManualConfirmation) Allow() model.Action     { return PaymentManualConfirmationModel.Allow }
+func (*PaymentManualConfirmationList) Allow() model.Action { return PaymentManualConfirmationModel.Allow }
+
+var PaymentManualConfirmation_ = struct {
+	Id string
 	TenantId string
 	PaymentId string
+	Note string
+	ActorId string
+	CreatedAt string
 }{
+	Id: "id",
 	TenantId: "tenant_id",
 	PaymentId: "payment_id",
+	Note: "note",
+	ActorId: "actor_id",
+	CreatedAt: "created_at",
 }
 
-func ReadOneListRefundsArgs(qb *orm.QB, model *ListRefundsArgs) (*ListRefundsArgs, error) {
+func ReadOnePaymentManualConfirmation(qb *orm.QB, model *PaymentManualConfirmation) (*PaymentManualConfirmation, error) {
 	err := qb.ReadOne()
 	if err != nil {
 		return nil, err
@@ -921,83 +780,112 @@ func ReadOneListRefundsArgs(qb *orm.QB, model *ListRefundsArgs) (*ListRefundsArg
 	return model, nil
 }
 
-func ReadAllListRefundsArgs(qb *orm.QB) (ListRefundsArgsList, error) {
-	var results ListRefundsArgsList
+func ReadAllPaymentManualConfirmation(qb *orm.QB) (PaymentManualConfirmationList, error) {
+	var results PaymentManualConfirmationList
 	err := qb.ReadAll(
-		func() model.Model { return &ListRefundsArgs{} },
-		func(m model.Model) { results = append(results, m.(*ListRefundsArgs)) },
+		func() model.Model { return &PaymentManualConfirmation{} },
+		func(m model.Model) { results = append(results, m.(*PaymentManualConfirmation)) },
 	)
 	return results, err
 }
 
-func (m *ListRefundsArgs) SchemaExt() []model.FieldExt {
-	return []model.FieldExt{
-		{Field: ListRefundsArgsModel.Fields[1], Ref: "payment", RefColumn: "id", OnDelete: ""},
-	}
-}
+// ModelName is the module identity: Definition.Name.
+const ModelName = "payment_manager"
 
-type ReconcilePaymentsArgs struct {
-	TenantId string
-}
+func (m *Module) ModelName() string { return ModelName }
 
-func (m *ReconcilePaymentsArgs) ModelName() string { return "reconcile_payments_args" }
+// Definition is the module's declaration (definition.go); crud.Mount compares it with what MountOperations mounted.
+func (m *Module) Definition() model.ModuleDefinition { return Definition }
 
-func (m *ReconcilePaymentsArgs) Schema() []model.Field { return ReconcilePaymentsArgsModel.Fields }
-
-func (m *ReconcilePaymentsArgs) Pointers() []any { return []any{&m.TenantId} }
-
-func (m *ReconcilePaymentsArgs) IsNil() bool { return m == nil }
-
-func (m *ReconcilePaymentsArgs) EncodeFields(w model.FieldWriter) {
-	w.String("tenant_id", m.TenantId)
-}
-
-func (m *ReconcilePaymentsArgs) DecodeFields(r model.FieldReader) {
-	if v, ok := r.String("tenant_id"); ok { m.TenantId = v }
-}
-
-type ReconcilePaymentsArgsList []*ReconcilePaymentsArgs
-
-func (s *ReconcilePaymentsArgsList) Len() int             { return len(*s) }
-func (s *ReconcilePaymentsArgsList) At(i int) model.Fielder { return (*s)[i] }
-func (s *ReconcilePaymentsArgsList) Append() model.Fielder  { v := &ReconcilePaymentsArgs{}; *s = append(*s, v); return v }
-func (s *ReconcilePaymentsArgsList) IsNil() bool          { return s == nil }
-func (s *ReconcilePaymentsArgsList) EncodeFields(_ model.FieldWriter) {}
-func (s *ReconcilePaymentsArgsList) DecodeFields(_ model.FieldReader) {}
-
-func (m *ReconcilePaymentsArgs) Validate(action byte) error {
-	return model.ValidateFields(action, m)
-}
-
-type ReconcileResult struct {
-	Closed int64
-}
-
-func (m *ReconcileResult) ModelName() string { return "reconcile_result" }
-
-func (m *ReconcileResult) Schema() []model.Field { return ReconcileResultModel.Fields }
-
-func (m *ReconcileResult) Pointers() []any { return []any{&m.Closed} }
-
-func (m *ReconcileResult) IsNil() bool { return m == nil }
-
-func (m *ReconcileResult) EncodeFields(w model.FieldWriter) {
-	w.Int("closed", m.Closed)
-}
-
-func (m *ReconcileResult) DecodeFields(r model.FieldReader) {
-	if v, ok := r.Int("closed"); ok { m.Closed = v }
-}
-
-type ReconcileResultList []*ReconcileResult
-
-func (s *ReconcileResultList) Len() int             { return len(*s) }
-func (s *ReconcileResultList) At(i int) model.Fielder { return (*s)[i] }
-func (s *ReconcileResultList) Append() model.Fielder  { v := &ReconcileResult{}; *s = append(*s, v); return v }
-func (s *ReconcileResultList) IsNil() bool          { return s == nil }
-func (s *ReconcileResultList) EncodeFields(_ model.FieldWriter) {}
-func (s *ReconcileResultList) DecodeFields(_ model.FieldReader) {}
-
-func (m *ReconcileResult) Validate(action byte) error {
-	return model.ValidateFields(action, m)
+// MountOperations offers every entity of the module: the actions its model allows, with crud's validation and the rules written in rule_*.go.
+func (m *Module) MountOperations(reg crud.Registry) {
+	reg.AddStoredEntity(crud.StoredEntity{
+		Model: &Payment{},
+		NewList: func() model.ModelSlice { return &PaymentList{} },
+		Store: m.StorePayment(),
+		Rules: PaymentModel.Rules,
+		MFA: PaymentModel.MFA,
+		Create: func(a crud.CurrentUser, tx crud.Tx, rec model.Model) (crud.RuleAnswer, error) {
+			return rec.(*Payment).Create(a, tx, m)
+		},
+		ExternalCalls: PaymentModel.ExternalCalls,
+		Calls: map[string]crud.ExternalCallFunc{
+			"TerminalPush": func(a crud.CurrentUser, rec model.Model, key crud.IdempotencyKey) (crud.FieldsToSave, error) {
+				return rec.(*Payment).TerminalPush(a, m, key)
+			},
+			"TerminalStatus": func(a crud.CurrentUser, rec model.Model, key crud.IdempotencyKey) (crud.FieldsToSave, error) {
+				return rec.(*Payment).TerminalStatus(a, m, key)
+			},
+		},
+	})
+	reg.AddStoredEntity(crud.StoredEntity{
+		Model: &PaymentManualConfirmation{},
+		NewList: func() model.ModelSlice { return &PaymentManualConfirmationList{} },
+		Store: m.StorePaymentManualConfirmation(),
+		Rules: PaymentManualConfirmationModel.Rules,
+		MFA: PaymentManualConfirmationModel.MFA,
+		Create: func(a crud.CurrentUser, tx crud.Tx, rec model.Model) (crud.RuleAnswer, error) {
+			return rec.(*PaymentManualConfirmation).Create(a, tx, m)
+		},
+		ExternalCalls: PaymentManualConfirmationModel.ExternalCalls,
+		Calls: map[string]crud.ExternalCallFunc{
+			"Confirm": func(a crud.CurrentUser, rec model.Model, key crud.IdempotencyKey) (crud.FieldsToSave, error) {
+				return rec.(*PaymentManualConfirmation).Confirm(a, m, key)
+			},
+		},
+	})
+	reg.AddStoredEntity(crud.StoredEntity{
+		Model: &OnlinePaymentRequest{},
+		NewList: func() model.ModelSlice { return &OnlinePaymentRequestList{} },
+		Store: m.StoreOnlinePaymentRequest(),
+		Rules: OnlinePaymentRequestModel.Rules,
+		MFA: OnlinePaymentRequestModel.MFA,
+		Create: func(a crud.CurrentUser, tx crud.Tx, rec model.Model) (crud.RuleAnswer, error) {
+			return rec.(*OnlinePaymentRequest).Create(a, tx, m)
+		},
+		ExternalCalls: OnlinePaymentRequestModel.ExternalCalls,
+		Calls: map[string]crud.ExternalCallFunc{
+			"GatewayStart": func(a crud.CurrentUser, rec model.Model, key crud.IdempotencyKey) (crud.FieldsToSave, error) {
+				return rec.(*OnlinePaymentRequest).GatewayStart(a, m, key)
+			},
+		},
+	})
+	reg.AddStoredEntity(crud.StoredEntity{
+		Model: &Refund{},
+		NewList: func() model.ModelSlice { return &RefundList{} },
+		Store: m.StoreRefund(),
+		Rules: RefundModel.Rules,
+		MFA: RefundModel.MFA,
+		Create: func(a crud.CurrentUser, tx crud.Tx, rec model.Model) (crud.RuleAnswer, error) {
+			return rec.(*Refund).Create(a, tx, m)
+		},
+		ExternalCalls: RefundModel.ExternalCalls,
+		Calls: map[string]crud.ExternalCallFunc{
+			"GatewayRefund": func(a crud.CurrentUser, rec model.Model, key crud.IdempotencyKey) (crud.FieldsToSave, error) {
+				return rec.(*Refund).GatewayRefund(a, m, key)
+			},
+		},
+	})
+	reg.AddStoredEntity(crud.StoredEntity{
+		Model: &PaymentReconciliation{},
+		NewList: func() model.ModelSlice { return &PaymentReconciliationList{} },
+		Store: m.StorePaymentReconciliation(),
+		Rules: PaymentReconciliationModel.Rules,
+		MFA: PaymentReconciliationModel.MFA,
+		Create: func(a crud.CurrentUser, tx crud.Tx, rec model.Model) (crud.RuleAnswer, error) {
+			return rec.(*PaymentReconciliation).Create(a, tx, m)
+		},
+		ExternalCalls: PaymentReconciliationModel.ExternalCalls,
+		Calls: map[string]crud.ExternalCallFunc{
+			"Reconcile": func(a crud.CurrentUser, rec model.Model, key crud.IdempotencyKey) (crud.FieldsToSave, error) {
+				return rec.(*PaymentReconciliation).Reconcile(a, m, key)
+			},
+		},
+	})
+	reg.AddReadOnlyEntity(&ChargeResult{}, func() model.Model { return &ChargeResult{} }, func(a crud.CurrentUser, args crud.ReadArgs, filter model.Model) (model.ModelSlice, error) {
+		return (&ChargeResult{}).Read(a, filter.(*ChargeResult), args, m)
+	})
+	reg.AddReadOnlyEntity(&PaymentStatusResult{}, func() model.Model { return &PaymentStatusResult{} }, func(a crud.CurrentUser, args crud.ReadArgs, filter model.Model) (model.ModelSlice, error) {
+		return (&PaymentStatusResult{}).Read(a, filter.(*PaymentStatusResult), args, m)
+	})
 }

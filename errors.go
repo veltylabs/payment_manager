@@ -1,8 +1,9 @@
 package paymentmanager
 
+import "webtyp.com/fmt"
 import "webtyp.com/model"
 
-const (
+var (
 	ErrNotFound            = model.NotFound("payment not found")
 	ErrRefundNotFound      = model.NotFound("refund not found")
 	ErrMissingArgs         = model.Invalid("missing required arguments")
@@ -27,3 +28,11 @@ const (
 )
 
 const ErrCannotRead = model.Invalid("payment_manager: cannot read the request")
+
+
+var (
+	ErrTimeoutOutOfRange   = fmt.Err("a wait is negative or longer than the module allows, so the module did not start; use a value between 1 and the limit documented in Timeouts")
+	ErrTerminalUnreachable = fmt.Err("the card machine did not answer, so nothing was charged by this module; charge it on the machine and press «pago realizado correctamente»")
+	ErrPaymentNotPending   = fmt.Err("this payment is no longer pending, so it cannot be confirmed")
+	ErrStillPending        = fmt.Err("the machine has not finished yet; asking again shortly")
+)
