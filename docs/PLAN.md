@@ -2,8 +2,10 @@
 PLAN: "test: payment_manager rule tests, part 2a (queue double and five tests)"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 2054144436731494998
+PR: https://github.com/veltylabs/payment_manager/pull/15
+REVIEWED_COMMIT: 164a6ec66f18e5dfca480e61b502ca3278f59fe6
 ---
 
 > Read AGENTS.md at the repo root before any change.
@@ -193,3 +195,8 @@ func TestTerminal_Unreachable(t *testing.T) {
 ## Delivery check
 
 `gotest` passes on every destination; the five tests exist with their rows. Submit as soon as Stage 1 and the first test pass, then keep committing. A tree that does not compile or whose tests did not run is a failed delivery.
+
+
+## Executor notes
+- In `tests/rules_test.go`, the `Payment` creation in `payTerminal` was updated to include `Channel: paymentmanager.ChannelTerminal` and `Currency: "CLP"` because loopback complained they were required ("400 channel required" and "400 currency required").
+- In `tests/rules_test.go`, the `Deps.Charges` initialization in `newModule` was changed to conditionally set `Device: "POS-1"` only when `term != nil`, because `payment_manager` requires a `Terminal` when a `ChargeSource` names a `Device`.
