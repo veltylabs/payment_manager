@@ -2,8 +2,6 @@
 PLAN: "chore: payment_manager part 2b (reuse warnings, translations, Spanish docs)"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
-SESSION: 10447623625114793059
 ---
 
 > Read AGENTS.md at the repo root before any change.
@@ -14,7 +12,7 @@ SESSION: 10447623625114793059
 > **Never ask a yes/no question about progress**; ask only when something in this plan is wrong, and name it.
 > **Before you submit:** `git status` must be clean and `git diff --stat main` must list the files of the plan. A pull request that carries only go.mod, go.sum or docs/PLAN.md is a failed delivery.
 
-# Plan: `payment_manager` part 2b — text debt only (no logic change)
+# Plan (submit the PR right after Stage 2 compiles, again after Stage 3): `payment_manager` part 2b — text debt only (no logic change)
 
 Part 2a is merged (v0.4.48). This plan touches only error/label text, `lang.json` and docs. No new behaviour, no `definition_gen.go` edit.
 
@@ -26,21 +24,13 @@ go install webtyp.com/lang/cmd/langc@latest
 ```
 No `go get`, no `replace`. Read files by ranges (`sed -n 1,80p file`).
 
-## Stage 1 — remove the reuse warnings
+## Stage 1 — skipped
 
-Run `langc sync .`. It reports (verbatim):
-
-```
-'payment is not a card terminal payment' and 'payment is not paid' share 'payment is not' — extract it: fmt.Err("payment is not", {a card terminal payment | paid})
-'payment not found' and 'refund not found' share 'not found' — extract it: fmt.Err("not found", {payment | refund})
-'the reference has nothing to pay' and 'the reference is already paid' share 'the reference' — extract it: fmt.Err("the reference", {has nothing to pay | is already paid})
-```
-
-Find the constants: `grep -n "not a card terminal payment\|is not paid\|not found\|has nothing to pay\|already paid" errors.go`. For each pair, rebuild the two messages from the shared prefix plus a differing word passed as data, exactly the way the other composed errors of `errors.go` are written (read the file first and copy that pattern). The error VALUES that tests compare (`errors.Is`/equality) must keep working: run `gotest` after each pair.
+The reuse warnings of `langc` are fixed later by the planner. Do NOT touch `errors.go` in this plan; go to Stage 2.
 
 ## Stage 2 — translate
 
-`langc sync .` again, then fill every empty value and every value that still equals the English text (the "placeholder token x" error) in `lang.json`, for every language column. Finish only when `langc sync .` prints 0 untranslated keys, 0 reuse warnings, 0 identical values.
+`langc sync .` again, then fill every empty value and every value that still equals the English text (the "placeholder token x" error) in `lang.json`, for every language column. Finish only when `langc sync .` prints 0 untranslated keys and 0 identical values (reuse warnings may remain: list them verbatim in the PR).
 
 ## Stage 3 — Spanish docs
 
