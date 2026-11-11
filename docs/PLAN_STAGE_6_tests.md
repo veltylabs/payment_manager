@@ -1,4 +1,4 @@
-← [Stage 5](PLAN_STAGE_5_browser_side.md) | Next → [Stage 7](PLAN_STAGE_7_translations_and_documentati.md)
+← [Index](PLAN.md)
 
 > Read AGENTS.md and the index `PLAN.md` (rules, tables, external calls) first. Commit when this stage compiles.
 
