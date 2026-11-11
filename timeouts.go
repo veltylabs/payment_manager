@@ -9,6 +9,7 @@ const (
 )
 
 // Timeouts are the waits of the module. A zero field takes its default. Example: Deps{Timeouts: Timeouts{TerminalPayWindowSeconds: 60}}
+// Ejemplo: var _ Timeouts
 type Timeouts struct {
 	TerminalPushSeconds      int64
 	TerminalPayWindowSeconds int64
