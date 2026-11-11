@@ -1,46 +1,193 @@
 ---
-PLAN: "test: payment_manager domain tests on the crud framework (part 2 of 2: tests, translations, docs)"
+PLAN: "test: payment_manager rule tests, part 2a (queue double and five tests)"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
-SESSION: 17140139098663298234
 ---
 
 > Read AGENTS.md at the repo root before any change.
 > **Finish by yourself:** when the delivery check passes, commit, push and open the pull request. Never ask whether to
 > proceed or finalize — nobody answers, and a session that waits ends without your work. Commit after every stage.
 > Never run `git reset`, `git restore`, `git checkout -- <file>` or `git stash` on your own work.
-> **Publishing:** you publish only by OPENING THE PULL REQUEST (a `git push` from your sandbox does not reach GitHub). Open it as soon as the first tests pass and keep committing to it.
+> **Publishing:** you publish only by OPENING THE PULL REQUEST (a `git push` from your sandbox does not reach GitHub). Submit after EACH test file that compiles and keep committing.
 > **Never ask a yes/no question about progress**; ask only when a signature in this plan is wrong, and name the symbol.
-> **Before you submit:** `git status` must be clean and `git diff --stat main` must list the files of the stages. A pull request that carries only go.mod, go.sum or docs/PLAN.md is a failed delivery: `git add -A`, commit and submit again.
+> **Before you submit:** `git status` must be clean and `git diff --stat main` must list the files of the plan. A pull request that carries only go.mod, go.sum or docs/PLAN.md is a failed delivery: `git add -A`, commit and submit again.
 
-# Plan (part 2 of 2): `payment_manager` — the domain tests
+# Plan: `payment_manager` — the first five tests (part 2a)
 
-Part 1 is merged (v0.4.47): the module is migrated to the crud-by-declaration framework (`definition.go`, `rule_*.go`, `call_*.go`, `timeouts.go`, `store.go`, `ui/`, `seed/demo.go`). Its old tests were deleted because they called removed methods; it has no tests yet. This part writes them (with the queue double that the external calls need), runs the translations and brings the documentation to the templates. `close`, `settle` and `settleTerminal` are kept as they were: do not move them to crud.
+The module is migrated (v0.4.47) and its `CompleteOnlinePayment` now asks the gateway (`Gateway.Confirm`). Its old tests were deleted with the removed code; this plan writes the first five, small and exact, with the sandbox fakes of the repo (`sandbox.NewTerminal()`, `sandbox.New(url)`). Nothing else: no translations, no docs (part 2b). Never edit `definition_gen.go`.
 
 ## Tools
 
 ```bash
 go install webtyp.com/devflow/cmd/gotest@latest
-go install webtyp.com/lang/cmd/langc@latest
 ```
-No `replace` in `go.mod`; no `go get`: the versions are already the right ones. Never edit `definition_gen.go`.
+No `go get`, no `replace`. Read files by ranges (`sed -n 1,80p file`).
 
-## Rules for the executor
+## Stage 1 — `tests/queue_double_test.go` (new, copy as is)
 
-1. **Do not write or summarize a plan:** the stage files are the spec. Start now.
-2. **Read files by ranges** (`sed -n 1,80p file`); never one huge `cat`.
-3. **A field a test uses is the one in `definition_gen.go`:** `grep -n "type <Entity> struct" -A25 definition_gen.go`.
-4. **No python or regex over the source:** edit file by file; `gotest` after each test file.
-5. **Deliver early:** submit as soon as the queue double and the first three tests pass, then keep committing.
+```go
+package tests
 
-## Stages
+import (
+	"webtyp.com/crud"
+	"webtyp.com/fmt"
+	"webtyp.com/model"
+)
 
-| Stage | File | What |
-|---|---|---|
-| 6 — tests | [PLAN_STAGE_6_tests.md](PLAN_STAGE_6_tests.md) | the queue double and the domain tests |
-| 7 — translations and documentation | [PLAN_STAGE_7_translations_and_documentati.md](PLAN_STAGE_7_translations_and_documentati.md) | `langc sync .`, README, ARCHITECTURE, diagrams |
+// callQueue is the test double of crud.CallQueue: it records what crud asks and stores nothing.
+type callQueue struct {
+	added  []crud.CallRequest
+	done   []string
+	failed []string // the reasons
+}
+
+func (q *callQueue) Add(tx crud.Tx, r crud.CallRequest) (string, error) {
+	q.added = append(q.added, r)
+	return fmt.Sprintf("call-%d", len(q.added)), nil
+}
+func (q *callQueue) MarkDone(id string) error { q.done = append(q.done, id); return nil }
+func (q *callQueue) MarkFailedAttempt(id string, call model.ExternalCallDefinition, reason string) error {
+	q.failed = append(q.failed, reason)
+	return nil
+}
+func (q *callQueue) ConfirmCall(id string) error        { return nil }
+func (q *callQueue) RejectCall(id, reason string) error { return nil }
+```
+
+## Stage 2 — `tests/rules_test.go` (new), written exactly (adapt only a name the compiler refuses, and say which in the PR)
+
+```go
+package tests
+
+import (
+	"testing"
+
+	paymentmanager "github.com/veltylabs/payment_manager"
+	"github.com/veltylabs/payment_manager/sandbox"
+	"webtyp.com/crud"
+	"webtyp.com/fmt"
+	"webtyp.com/model"
+	"webtyp.com/orm"
+	"webtyp.com/router"
+	"webtyp.com/router/mock"
+	"webtyp.com/storage/mem"
+	"webtyp.com/unixid"
+)
+
+const refModule = "booking"
+
+// fakeCharge is the ChargeReader of the module that owns the reference: there is always 25.000 to pay.
+type fakeCharge struct{}
+
+func (fakeCharge) Charge(tenantId, referenceId string) (int64, string, bool, error) {
+	return 25000, "CLP", true, nil
+}
+
+// newModule builds the module over an in-memory database; term may be nil (no card machine).
+func newModule(t *testing.T, term paymentmanager.Terminal, timeouts paymentmanager.Timeouts) (*paymentmanager.Module, error) {
+	t.Helper()
+	ids, err := unixid.NewUnixID()
+	if err != nil {
+		t.Fatalf("unixid: %v", err)
+	}
+	return paymentmanager.New(orm.New(mem.New()), paymentmanager.Deps{
+		IDs:      ids,
+		TenantID: "t1",
+		Charges:  []paymentmanager.ChargeSource{{Module: refModule, Reader: fakeCharge{}, Device: "POS-1"}},
+		Terminal: term,
+		Timeouts: timeouts,
+	})
+}
+
+// payTerminal creates payment p1 by card (debit) as u1 through the loopback and answers the created payment.
+func payTerminal(m *paymentmanager.Module, q *callQueue) (paymentmanager.Payment, error) {
+	var out paymentmanager.Payment
+	var callErr error
+	crud.LoopbackActingAsWithQueue(nil, "u1", q, m).Call(
+		router.Operation{Module: paymentmanager.ModelName, Entity: (&paymentmanager.Payment{}).ModelName(), Action: model.Create},
+		&crud.CreateArgs{Records: []model.Model{&paymentmanager.Payment{
+			Id: "p1", ReferenceModule: refModule, ReferenceId: "r1", Method: paymentmanager.MethodDebit,
+		}}},
+		&out, func(err error) { callErr = err })
+	return out, callErr
+}
+
+func TestTimeouts_OutOfRangeRefused(t *testing.T) {
+	if _, err := newModule(t, sandbox.NewTerminal(), paymentmanager.Timeouts{}); err != nil {
+		t.Fatalf("zero Timeouts must take the defaults: %v", err)
+	}
+	if _, err := newModule(t, sandbox.NewTerminal(), paymentmanager.Timeouts{TerminalPushSeconds: 11}); err == nil {
+		t.Fatal("a push wait above the cap must refuse to start")
+	}
+}
+
+func TestMount_MatchesDefinition(t *testing.T) {
+	m, err := newModule(t, sandbox.NewTerminal(), paymentmanager.Timeouts{})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if err := crud.MountWithQueue(&mock.Router{}, nil, nil, &callQueue{}, m); err != nil {
+		t.Fatalf("the generated mount does not match the definition: %v", err)
+	}
+}
+
+func TestTerminal_NoTerminalRefused(t *testing.T) {
+	m, err := newModule(t, nil, paymentmanager.Timeouts{})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if _, err := payTerminal(m, &callQueue{}); err == nil {
+		t.Fatal("a card payment without a terminal must be refused")
+	}
+}
+
+func TestTerminal_PushViaExternalCall(t *testing.T) {
+	term := sandbox.NewTerminal()
+	m, err := newModule(t, term, paymentmanager.Timeouts{})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	q := &callQueue{}
+	out, err := payTerminal(m, q)
+	if err != nil {
+		t.Fatalf("payTerminal: %v", err)
+	}
+	if term.Pushes() != 1 {
+		t.Fatalf("expected one push to the machine, got %d", term.Pushes())
+	}
+	if out.ProviderToken != sandbox.TerminalTokenPrefix+"p1" {
+		t.Fatalf("expected the machine's token, got %q", out.ProviderToken)
+	}
+	if out.Status != paymentmanager.StatusPending {
+		t.Fatalf("a payment waiting for the card is pending, got %q", out.Status)
+	}
+	if len(q.added) != 2 || q.added[0].Call != "TerminalPush" || q.added[1].Call != "TerminalStatus" {
+		t.Fatalf("expected TerminalPush then TerminalStatus queued, got %+v", q.added)
+	}
+}
+
+func TestTerminal_Unreachable(t *testing.T) {
+	term := sandbox.NewTerminal()
+	term.FailNext(fmt.Err("machine offline"))
+	m, err := newModule(t, term, paymentmanager.Timeouts{})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	q := &callQueue{}
+	out, err := payTerminal(m, q)
+	if err != nil {
+		t.Fatalf("the payment is created even when the machine does not answer: %v", err)
+	}
+	if out.Status != paymentmanager.StatusPending || out.ProviderToken != "" {
+		t.Fatalf("expected pending with no token, got %q / %q", out.Status, out.ProviderToken)
+	}
+	if len(q.failed) == 0 {
+		t.Fatal("the failed push must be recorded in the queue")
+	}
+}
+```
+(`unixid.NewUnixID()` is the real id generator used by `seed/demo.go`; `fmt.Err` is `webtyp.com/fmt`.) Each test has its row in `docs/TESTS.md` (`| [Name](../tests/rules_test.go) | rule |`, header `| Test | Rule |`).
 
 ## Delivery check
 
-`gotest` passes on every destination; `langc sync .` reports no NEW untranslated key (warnings about messages that already existed before this part are listed in the PR description, never fixed here); every test has its row in `docs/TESTS.md` (`| [TestName](../tests/file_test.go) | rule |`). A tree that does not compile or whose tests did not run is a failed delivery.
+`gotest` passes on every destination; the five tests exist with their rows. Submit as soon as Stage 1 and the first test pass, then keep committing. A tree that does not compile or whose tests did not run is a failed delivery.

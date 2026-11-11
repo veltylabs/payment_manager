@@ -5,8 +5,6 @@ import (
 	"webtyp.com/model"
 )
 
-
-
 const (
 	ChannelCounter  = "counter"
 	ChannelOnline   = "online"
@@ -80,7 +78,7 @@ var PaymentModel = model.Definition{
 	Allow: model.Create | model.Read,
 	Rules: model.Rules{
 		Create: model.AddMyBusinessRule,
-		Read: model.HaveNoBusinessRule,
+		Read:   model.HaveNoBusinessRule,
 	},
 	ExternalCalls: []model.ExternalCallDefinition{
 		{Name: "TerminalPush", Mode: model.WaitForReply, MaxWaitSeconds: 10},
@@ -105,13 +103,12 @@ var RefundModel = model.Definition{
 	Allow: model.Create | model.Read,
 	Rules: model.Rules{
 		Create: model.AddMyBusinessRule,
-		Read: model.HaveNoBusinessRule,
+		Read:   model.HaveNoBusinessRule,
 	},
 	ExternalCalls: []model.ExternalCallDefinition{
 		{Name: "GatewayRefund", Mode: model.WaitForReply, MaxWaitSeconds: 15},
 	},
 }
-
 
 var PaymentCounterModel = model.Definition{
 	Name: "payment_counter",
@@ -120,9 +117,6 @@ var PaymentCounterModel = model.Definition{
 		{Name: "next_number", Type: model.Int(), NotNull: true},
 	},
 }
-
-
-
 
 var PaymentStatusResultModel = model.Definition{
 	Name: "payment_status_result",
@@ -136,7 +130,6 @@ var PaymentStatusResultModel = model.Definition{
 		Read: model.AddMyBusinessRule,
 	},
 }
-
 
 var ChargeResultModel = model.Definition{
 	Name: "charge_result",
@@ -154,13 +147,6 @@ var ChargeResultModel = model.Definition{
 		Read: model.AddMyBusinessRule,
 	},
 }
-
-
-
-
-
-
-
 
 var OnlinePaymentRequestModel = model.Definition{
 	Name: "payment_online_request",
@@ -184,7 +170,7 @@ var OnlinePaymentRequestModel = model.Definition{
 	Allow: model.Create | model.Read,
 	Rules: model.Rules{
 		Create: model.AddMyBusinessRule,
-		Read: model.HaveNoBusinessRule,
+		Read:   model.HaveNoBusinessRule,
 	},
 	ExternalCalls: []model.ExternalCallDefinition{
 		{Name: "GatewayStart", Mode: model.WaitForReply, MaxWaitSeconds: 15},
@@ -205,7 +191,7 @@ var PaymentReconciliationModel = model.Definition{
 	Allow: model.Create | model.Read,
 	Rules: model.Rules{
 		Create: model.AddMyBusinessRule,
-		Read: model.HaveNoBusinessRule,
+		Read:   model.HaveNoBusinessRule,
 	},
 	ExternalCalls: []model.ExternalCallDefinition{
 		{Name: "Reconcile", Mode: model.RetryInBackground, MaxAttempts: 3},
@@ -225,13 +211,12 @@ var PaymentManualConfirmationModel = model.Definition{
 	Allow: model.Create | model.Read,
 	Rules: model.Rules{
 		Create: model.AddMyBusinessRule,
-		Read: model.HaveNoBusinessRule,
+		Read:   model.HaveNoBusinessRule,
 	},
 	ExternalCalls: []model.ExternalCallDefinition{
 		{Name: "Confirm", Mode: model.WaitForReply, MaxWaitSeconds: 10},
 	},
 }
-
 
 var Definition = model.ModuleDefinition{
 	Name: "payment_manager",

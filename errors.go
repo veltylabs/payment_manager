@@ -25,10 +25,10 @@ var (
 	ErrTerminalFailed      = model.Invalid("card terminal call failed")
 	ErrTerminalRequired    = model.Invalid("card payments for this reference go through the card terminal")
 	ErrNotTerminal         = model.Invalid("payment is not a card terminal payment")
+	ErrTokenMismatch       = model.Invalid("the return's token is not this payment's; nothing was changed")
 )
 
 const ErrCannotRead = model.Invalid("payment_manager: cannot read the request")
-
 
 var (
 	ErrTimeoutOutOfRange   = fmt.Err("a wait is negative or longer than the module allows, so the module did not start; use a value between 1 and the limit documented in Timeouts")

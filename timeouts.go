@@ -16,9 +16,15 @@ type Timeouts struct {
 }
 
 func (t Timeouts) withDefaults() (Timeouts, error) {
-	if t.TerminalPushSeconds == 0 { t.TerminalPushSeconds = DefaultTerminalPushSeconds }
-	if t.TerminalPayWindowSeconds == 0 { t.TerminalPayWindowSeconds = DefaultTerminalPayWindowSeconds }
-	if t.OnlineStartSeconds == 0 { t.OnlineStartSeconds = DefaultOnlineStartSeconds }
+	if t.TerminalPushSeconds == 0 {
+		t.TerminalPushSeconds = DefaultTerminalPushSeconds
+	}
+	if t.TerminalPayWindowSeconds == 0 {
+		t.TerminalPayWindowSeconds = DefaultTerminalPayWindowSeconds
+	}
+	if t.OnlineStartSeconds == 0 {
+		t.OnlineStartSeconds = DefaultOnlineStartSeconds
+	}
 	if t.TerminalPushSeconds < 0 || t.TerminalPayWindowSeconds < 0 || t.OnlineStartSeconds < 0 ||
 		t.TerminalPushSeconds > TerminalPushCapSeconds || t.OnlineStartSeconds > OnlineStartCapSeconds {
 		return Timeouts{}, ErrTimeoutOutOfRange

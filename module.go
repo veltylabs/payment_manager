@@ -183,10 +183,40 @@ func (m *Module) settleTerminal(p Payment, res TerminalResult, fromReconcile boo
 	return p, nil
 }
 
-// CompleteOnlinePayment asienta el resultado que el adaptador ya verificó. Es idempotente: un pago que ya no
-// está PENDING se devuelve tal cual.
+// CompleteOnlinePayment cierra un pago online cuando el cliente vuelve de la pasarela. La vuelta solo IDENTIFICA el pago
+// (OnlineReturn no trae resultado): lo que pasó lo pregunta el módulo a la pasarela con el token guardado, nunca con el
+// de la petición, así que nadie puede cancelar ni vencer un pago ajeno con una dirección armada a mano. Un pago que ya no
+// está pendiente se devuelve igual (idempotente); un resultado aún pendiente lo deja pendiente (la conciliación lo vence).
+//
+// Ejemplo: p, err := m.CompleteOnlinePayment(paymentmanager.OnlineReturn{PaymentId: "p1", Token: tokenDeLaVuelta})
 func (m *Module) CompleteOnlinePayment(ret OnlineReturn) (Payment, error) {
-	return Payment{}, nil
+	if m.gw == nil {
+		return Payment{}, ErrGatewayUnavailable
+	}
+	if ret.PaymentId == "" && ret.Token == "" {
+		return Payment{}, ErrMissingArgs
+	}
+	var p Payment
+	var err error
+	if ret.PaymentId != "" {
+		p, err = m.repo.paymentById(m.tenantID, ret.PaymentId)
+	} else {
+		p, err = m.repo.paymentByProviderToken(m.tenantID, ret.Token)
+	}
+	if err != nil {
+		return Payment{}, err
+	}
+	if p.Status != StatusPending {
+		return p, nil
+	}
+	if ret.Token != "" && ret.Token != p.ProviderToken {
+		return Payment{}, ErrTokenMismatch
+	}
+	res, err := m.gw.Confirm(p.ProviderToken)
+	if err != nil {
+		return p, ErrGatewayFailed
+	}
+	return m.settle(p, res, false)
 }
 
 // settle asienta un resultado de la pasarela (diagrama §6). fromReconcile

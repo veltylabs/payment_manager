@@ -16,9 +16,9 @@ func (p *ChargeResult) Read(a crud.CurrentUser, filter *ChargeResult, args crud.
 	terminal := m.hasTerminal(filter.ReferenceModule)
 	return &ChargeResultList{
 		&ChargeResult{
-			Amount: amount,
+			Amount:   amount,
 			Currency: currency,
-			Payable: payable,
+			Payable:  payable,
 			Terminal: terminal,
 		},
 	}, nil

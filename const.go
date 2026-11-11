@@ -1,9 +1,9 @@
 package paymentmanager
 
 const (
-	StatusStarted = "started"
+	StatusStarted    = "started"
 	ReconcilePending = "pending"
-	ReconcileDone = "done"
+	ReconcileDone    = "done"
 )
 
 // QueryPayment y QueryStatus son los parámetros de la query con que la ruta de retorno de la pasarela devuelve al cliente a la app.

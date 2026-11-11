@@ -38,6 +38,8 @@ type Gateway interface {
 	Provider() string
 	Start(req GatewayStart) (GatewayStarted, error)
 	Status(token string) (GatewayResult, error)
+	// Confirm finaliza la transacción cuando el proveedor lo exige y devuelve su estado real; idempotente.
+	Confirm(token string) (GatewayResult, error)
 	Refund(token string, amount int64) (GatewayRefund, error)
 }
 
@@ -95,8 +97,6 @@ type ChargeSource struct {
 	Reader ChargeReader
 	Device string // id de la máquina de la caja que cobra las referencias de este módulo; "" = sin máquina
 }
-
-// OnlineResult es lo que el adaptador ya verificó (firma del aviso o confirmación con el procesador).
 
 // PayoutTerms es lo que un adaptador (Terminal o Gateway) sabe de su plan contratado: cuánto descuenta el
 // procesador y en cuántos días hábiles bancarios deposita. Es opcional: el módulo lo detecta con una aserción

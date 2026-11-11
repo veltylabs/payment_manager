@@ -18,7 +18,6 @@ func (p *Refund) Create(a crud.CurrentUser, tx crud.Tx, m *Module) (crud.RuleAns
 		return crud.RuleAnswer{}, &model.FieldError{Field: "amount", Err: ErrRefundExceeds}
 	}
 
-
 	p.Method = pay.Method
 	p.CreatedBy = a.UserID
 

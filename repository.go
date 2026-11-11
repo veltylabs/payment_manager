@@ -31,6 +31,12 @@ func (r *repository) paymentById(tenantId, id string) (Payment, error) {
 	return readOnePayment(r.db.Query(p).Where(Payment_.TenantId).Eq(tenantId).Where(Payment_.Id).Eq(id), p)
 }
 
+// paymentByProviderToken busca el pago de un tenant por el token que le dio el proveedor.
+func (r *repository) paymentByProviderToken(tenantId, token string) (Payment, error) {
+	p := &Payment{}
+	return readOnePayment(r.db.Query(p).Where(Payment_.TenantId).Eq(tenantId).Where(Payment_.ProviderToken).Eq(token), p)
+}
+
 // paymentAnyTenant busca un id sin filtrar por tenant: los ids los genera
 // quien llama, así que reusarlos entre tenants debe responder ErrIdTaken.
 func (r *repository) paymentAnyTenant(id string) (Payment, error) {
