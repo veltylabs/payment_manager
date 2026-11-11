@@ -2,8 +2,10 @@
 PLAN: "test: payment_manager rule tests, part 2a (queue double and five tests)"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 2054144436731494998
+PR: https://github.com/veltylabs/payment_manager/pull/15
+REVIEWED_COMMIT: 164a6ec66f18e5dfca480e61b502ca3278f59fe6
 ---
 
 > Read AGENTS.md at the repo root before any change.
