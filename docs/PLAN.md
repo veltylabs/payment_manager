@@ -2,8 +2,10 @@
 PLAN: "refactor!: payment_manager on the crud-by-declaration framework — Allow, Rules and ExternalCalls in definition.go, persistence by crud, only domain rules in rule files"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 15588277729924123041
+PR: https://github.com/veltylabs/payment_manager/pull/13
+REVIEWED_COMMIT: 06392b8edc34adc749a9c5117b3f4f059e585898
 ---
 
 > Read AGENTS.md at the repo root before any change.
