@@ -12,11 +12,12 @@ func (p *Refund) GatewayRefund(a crud.CurrentUser, m *Module, key crud.Idempoten
 		return nil, ErrGatewayFailed
 	}
 
-	if res.Kind == RefundKindReversed {
+	switch res.Kind {
+	case RefundKindReversed:
 		p.Kind = RefundKindReversed
-	} else if res.Kind == RefundKindNullified {
+	case RefundKindNullified:
 		p.Kind = RefundKindNullified
-	} else {
+	default:
 		p.Kind = RefundKindManual
 	}
 	p.AuthorizationCode = res.AuthorizationCode
