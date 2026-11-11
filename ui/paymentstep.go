@@ -2,6 +2,7 @@ package ui
 
 import (
 	"webtyp.com/components/segmentedcontrol"
+	"webtyp.com/crud"
 	"webtyp.com/fmt"
 	"webtyp.com/lang"
 	"webtyp.com/model"
@@ -101,15 +102,18 @@ func (s *PaymentStep) Render() *Element {
 }
 
 func (s *PaymentStep) loadCharge() {
-	out := &paymentmanager.ChargeResult{}
-	s.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpGetCharge,
-		&paymentmanager.GetChargeArgs{TenantId: s.TenantID, ReferenceModule: s.ReferenceModule, ReferenceId: s.ReferenceID}, out,
+	charges := &paymentmanager.ChargeResultList{}
+	s.Caller.Call(router.Operation{Module: paymentmanager.ModelName, Entity: (&paymentmanager.ChargeResult{}).ModelName(), Action: model.Read},
+		&crud.ReadArgs{Filter: &paymentmanager.ChargeResult{ReferenceModule: s.ReferenceModule, ReferenceId: s.ReferenceID}}, charges,
 		func(err error) {
-			if err != nil {
+			if err != nil || len(*charges) == 0 {
 				s.amount.Set("")
-				s.errMsg.Set(err.Error())
+				if err != nil {
+					s.errMsg.Set(err.Error())
+				}
 				return
 			}
+			out := (*charges)[0]
 			if !out.Payable {
 				s.amount.Set(lang.Translate(textNothingToPay).String())
 				return
@@ -160,14 +164,13 @@ func (s *PaymentStep) registerCounter() {
 		return
 	}
 	out := &paymentmanager.Payment{}
-	args := &paymentmanager.CreateCounterPaymentArgs{
-		TenantId:        s.TenantID,
+	args := &crud.CreateArgs{Records: []model.Model{&paymentmanager.Payment{
 		Id:              s.IDs.NewID(),
 		ReferenceModule: s.ReferenceModule,
 		ReferenceId:     s.ReferenceID,
 		Method:          s.method,
-	}
-	s.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpCreateCounterPayment, args, out, func(err error) {
+	}}}
+	s.Caller.Call(router.Operation{Module: paymentmanager.ModelName, Entity: (&paymentmanager.Payment{}).ModelName(), Action: model.Create}, args, out, func(err error) {
 		s.busy.Set(false)
 		if err != nil {
 			s.errMsg.Set(err.Error())
@@ -181,8 +184,8 @@ func (s *PaymentStep) registerCounter() {
 
 func (s *PaymentStep) startTerminal() {
 	out := &paymentmanager.Payment{}
-	args := &paymentmanager.StartTerminalPaymentArgs{TenantId: s.TenantID, Id: s.IDs.NewID(), ReferenceModule: s.ReferenceModule, ReferenceId: s.ReferenceID, Method: s.method}
-	s.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpStartTerminalPayment, args, out, func(err error) {
+	args := &crud.CreateArgs{Records: []model.Model{&paymentmanager.Payment{Id: s.IDs.NewID(), ReferenceModule: s.ReferenceModule, ReferenceId: s.ReferenceID, Method: s.method}}}
+	s.Caller.Call(router.Operation{Module: paymentmanager.ModelName, Entity: (&paymentmanager.Payment{}).ModelName(), Action: model.Create}, args, out, func(err error) {
 		if err != nil {
 			s.busy.Set(false)
 			s.errMsg.Set(err.Error())
@@ -196,13 +199,17 @@ func (s *PaymentStep) startTerminal() {
 // pollTerminal consulta la máquina cada terminalPollMillis hasta que el pago deja de estar PENDING.
 func (s *PaymentStep) pollTerminal(id string) {
 	time.AfterFunc(terminalPollMillis, func() {
-		out := &paymentmanager.Payment{}
-		s.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpRefreshTerminalPayment, &paymentmanager.GetPaymentArgs{TenantId: s.TenantID, Id: id}, out, func(err error) {
+		rows := &paymentmanager.PaymentList{}
+		s.Caller.Call(router.Operation{Module: paymentmanager.ModelName, Entity: (&paymentmanager.Payment{}).ModelName(), Action: model.Read}, &crud.ReadArgs{ID: id}, rows, func(err error) {
+			var out paymentmanager.Payment
+			if err == nil && len(*rows) > 0 {
+				out = *(*rows)[0]
+			}
 			switch {
 			case err != nil:
 				s.busy.Set(false)
 				s.errMsg.Set(err.Error())
-			case out.Status == paymentmanager.StatusPending:
+			case out.Status == "" || out.Status == paymentmanager.StatusPending: // the server asks the machine in the background
 				s.pollTerminal(id)
 			case out.Status == paymentmanager.StatusPaid:
 				s.busy.Set(false)
@@ -218,15 +225,14 @@ func (s *PaymentStep) pollTerminal(id string) {
 }
 
 func (s *PaymentStep) startOnline() {
-	out := &paymentmanager.StartOnlinePaymentResult{}
-	args := &paymentmanager.StartOnlinePaymentArgs{
-		TenantId:        s.TenantID,
+	out := &paymentmanager.OnlinePaymentRequest{}
+	args := &crud.CreateArgs{Records: []model.Model{&paymentmanager.OnlinePaymentRequest{
 		Id:              s.IDs.NewID(),
 		ReferenceModule: s.ReferenceModule,
 		ReferenceId:     s.ReferenceID,
-		ReturnTo:        s.ReturnTo,
-	}
-	s.Caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpStartOnlinePayment, args, out, func(err error) {
+		ReturnUrl:       s.ReturnTo,
+	}}}
+	s.Caller.Call(router.Operation{Module: paymentmanager.ModelName, Entity: (&paymentmanager.OnlinePaymentRequest{}).ModelName(), Action: model.Create}, args, out, func(err error) {
 		if err != nil {
 			s.busy.Set(false)
 			s.errMsg.Set(err.Error())

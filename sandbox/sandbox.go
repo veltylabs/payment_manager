@@ -4,7 +4,6 @@
 package sandbox
 
 import (
-	"strings"
 
 	"webtyp.com/fmt"
 
@@ -79,16 +78,10 @@ func (g *Gateway) Start(req paymentmanager.GatewayStart) (paymentmanager.Gateway
 	return paymentmanager.GatewayStarted{Token: token, RedirectURL: g.baseURL, TokenField: "token_ws"}, nil
 }
 
-// Result devuelve, para pruebas y la demo, el OnlineResult de un token: el resultado que fijaron Approve o Reject
-// (pendiente si ninguno) y el monto cobrado. Token desconocido → ErrUnknownToken.
-func (g *Gateway) Result(token string) (paymentmanager.OnlineResult, error) {
-	res, err := g.Status(token)
-	if err != nil {
-		return paymentmanager.OnlineResult{}, err
-	}
-	paymentId := strings.TrimPrefix(token, TokenPrefix)
-	return paymentmanager.OnlineResult{PaymentId: paymentId, Result: res}, nil
-}
+// Confirm devuelve el estado real del cobro de un token (idempotente): lo que fijaron Approve o Reject, o pendiente si ninguno.
+//
+// Ejemplo: res, err := g.Confirm(token)
+func (g *Gateway) Confirm(token string) (paymentmanager.GatewayResult, error) { return g.result(token) }
 
 func (g *Gateway) Status(token string) (paymentmanager.GatewayResult, error) { return g.result(token) }
 

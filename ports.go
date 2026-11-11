@@ -16,6 +16,7 @@ type TerminalPush struct {
 	Amount      int64
 	Currency    string
 	Method      string // MethodDebit | MethodCredit
+	WaitSeconds int64
 	Description string // texto corto que muestra la máquina; puede ir vacío
 }
 
@@ -46,6 +47,7 @@ type GatewayStart struct {
 	Currency    string
 	Description string // texto corto para el pagador; puede ir vacío
 	Payer       Payer  // lo exige TUU; Webpay lo ignora
+	WaitSeconds int64
 }
 
 // Payer es quien paga en línea. Los campos pueden ir vacíos; un adaptador que los exige responde error.
@@ -95,10 +97,6 @@ type ChargeSource struct {
 }
 
 // OnlineResult es lo que el adaptador ya verificó (firma del aviso o confirmación con el procesador).
-type OnlineResult struct {
-	PaymentId string
-	Result    GatewayResult
-}
 
 // PayoutTerms es lo que un adaptador (Terminal o Gateway) sabe de su plan contratado: cuánto descuenta el
 // procesador y en cuántos días hábiles bancarios deposita. Es opcional: el módulo lo detecta con una aserción
@@ -128,4 +126,10 @@ type Payout struct {
 // Ejemplo: deps.BankDays = calendario
 type BankDays interface {
 	BankDayAfter(from time.Unix, days int) (time.Unix, error)
+}
+
+// OnlineReturn identifies the payment a provider's return refers to. It carries no outcome: the module asks the gateway.
+type OnlineReturn struct {
+	PaymentId string // the buy order the provider echoes, when it sends one
+	Token     string // the provider token of the transaction, when it sends one
 }

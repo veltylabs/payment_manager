@@ -5,7 +5,7 @@ import (
 	"webtyp.com/model"
 )
 
-const ModelName = "payment_manager"
+
 
 const (
 	ChannelCounter  = "counter"
@@ -52,17 +52,17 @@ var PaymentModel = model.Definition{
 	Name: "payment",
 	Fields: model.Fields{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true, Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'.', '-', '_'}, Minimum: 1, Maximum: 26}},
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
 		{Name: "reference_module", Type: model.Text(), NotNull: true, Item: model.ItemDescription, Permitted: model.Permitted{Maximum: 60}},
 		{Name: "reference_id", Type: model.Text(), NotNull: true, Item: model.ItemDescription, Permitted: model.Permitted{Maximum: 64}},
 		{Name: "channel", Type: model.Text(), NotNull: true},
 		{Name: "method", Type: model.Text(), NotNull: true, Item: model.ItemDescription},
-		{Name: "amount", Type: model.Int(), NotNull: true, Item: model.ItemLabel},
+		{Name: "amount", Type: model.Int(), NotNull: true, Item: model.ItemLabel, ServerOnly: true},
 		{Name: "currency", Type: model.Text(), NotNull: true, Item: model.ItemDescription, Permitted: model.Permitted{Letters: true, Minimum: 3, Maximum: 3}},
-		{Name: "status", Type: model.Text(), NotNull: true, Item: model.ItemDescription},
+		{Name: "status", Type: model.Text(), NotNull: true, Item: model.ItemDescription, ServerOnly: true},
 		{Name: "refunded_amount", Type: model.Int()},
-		{Name: "provider_token", Type: model.Text(), OmitEmpty: true},
-		{Name: "provider", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'_', '-'}, Maximum: 30}},
+		{Name: "provider_token", Type: model.Text(), OmitEmpty: true, ServerOnly: true},
+		{Name: "provider", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'_', '-'}, Maximum: 30}, ServerOnly: true},
 		// Lo que devuelve la pasarela se valida antes de guardarse: código de
 		// autorización hasta 6 caracteres (Webpay) y últimos 4 dígitos de la tarjeta.
 		{Name: "authorization_code", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Letters: true, Numbers: true, Maximum: 6}},
@@ -72,10 +72,19 @@ var PaymentModel = model.Definition{
 		{Name: "receipt_number", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Maximum: 40}},
 		{Name: "return_to", Type: model.Text(), OmitEmpty: true, Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'_', '-'}, Maximum: 60}},
 		{Name: "created_by", Type: model.Text(), OmitEmpty: true},
-		{Name: "created_at", Type: model.UnixTime()},
+		{Name: "created_at", Type: model.UnixTime(), ServerOnly: true},
 		{Name: "paid_at", Type: model.UnixTime(), OmitEmpty: true},
-		{Name: "updated_at", Type: model.UnixTime()},
+		{Name: "updated_at", Type: model.UnixTime(), ServerOnly: true},
 		{Name: "revision", Type: model.Int()},
+	},
+	Allow: model.Create | model.Read,
+	Rules: model.Rules{
+		Create: model.AddMyBusinessRule,
+		Read: model.HaveNoBusinessRule,
+	},
+	ExternalCalls: []model.ExternalCallDefinition{
+		{Name: "TerminalPush", Mode: model.WaitForReply, MaxWaitSeconds: 10},
+		{Name: "TerminalStatus", Mode: model.RetryInBackground, MaxAttempts: 20},
 	},
 }
 
@@ -83,29 +92,26 @@ var RefundModel = model.Definition{
 	Name: "refund",
 	Fields: model.Fields{
 		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true, Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'.', '-', '_'}, Minimum: 1, Maximum: 26}},
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
 		{Name: "payment_id", Type: model.Text(), Ref: &PaymentModel, DB: &model.FieldDB{RefColumn: "id"}, NotNull: true},
-		{Name: "amount", Type: model.Int(), NotNull: true, Item: model.ItemLabel},
+		{Name: "amount", Type: model.Int(), NotNull: true, Item: model.ItemLabel, ServerOnly: true},
 		{Name: "kind", Type: model.Text(), NotNull: true},
 		{Name: "method", Type: model.Text(), OmitEmpty: true},
 		{Name: "reason", Type: input.Textarea(), NotNull: true, Permitted: model.Permitted{Maximum: 255}},
 		{Name: "authorization_code", Type: model.Text(), OmitEmpty: true},
 		{Name: "created_by", Type: model.Text(), OmitEmpty: true},
-		{Name: "created_at", Type: model.UnixTime()},
+		{Name: "created_at", Type: model.UnixTime(), ServerOnly: true},
+	},
+	Allow: model.Create | model.Read,
+	Rules: model.Rules{
+		Create: model.AddMyBusinessRule,
+		Read: model.HaveNoBusinessRule,
+	},
+	ExternalCalls: []model.ExternalCallDefinition{
+		{Name: "GatewayRefund", Mode: model.WaitForReply, MaxWaitSeconds: 15},
 	},
 }
 
-var CreateCounterPaymentArgsModel = model.Definition{
-	Name: "create_counter_payment_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "id", Type: model.Text(), NotNull: true},
-		{Name: "reference_module", Type: model.Text(), NotNull: true},
-		{Name: "reference_id", Type: model.Text(), NotNull: true},
-		{Name: "method", Type: input.Radio(), NotNull: true},
-		{Name: "created_by", Type: model.Text()},
-	},
-}
 
 var PaymentCounterModel = model.Definition{
 	Name: "payment_counter",
@@ -115,128 +121,128 @@ var PaymentCounterModel = model.Definition{
 	},
 }
 
-var StartOnlinePaymentArgsModel = model.Definition{
-	Name: "start_online_payment_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "id", Type: model.Text(), NotNull: true},
-		{Name: "reference_module", Type: model.Text(), NotNull: true},
-		{Name: "reference_id", Type: model.Text(), NotNull: true},
-		// return_to es la pantalla (hash) a la que vuelve el navegador; opcional.
-		{Name: "return_to", Type: model.Text(), Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'_', '-'}, Maximum: 60}},
-		{Name: "payer_name", Type: model.Text(), Permitted: model.Permitted{Letters: true, Tilde: true, Spaces: true, Maximum: 120}},
-		{Name: "payer_email", Type: model.Text(), Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'@', '.', '-', '_', '+'}, Maximum: 120}},
-		{Name: "payer_phone", Type: model.Text(), Permitted: model.Permitted{Numbers: true, Extra: []rune{'+'}, Maximum: 20}},
-		{Name: "created_by", Type: model.Text()},
-	},
-}
 
-var StartOnlinePaymentResultModel = model.Definition{
-	Name: "start_online_payment_result",
-	Fields: model.Fields{
-		{Name: "payment_id", Type: model.Text()},
-		{Name: "redirect_url", Type: model.Text()},
-		{Name: "token", Type: model.Text()},
-		{Name: "token_field", Type: model.Text()},
-	},
-}
 
-var GetPaymentArgsModel = model.Definition{
-	Name: "get_payment_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "id", Type: model.Text(), NotNull: true},
-	},
-}
 
 var PaymentStatusResultModel = model.Definition{
 	Name: "payment_status_result",
 	Fields: model.Fields{
 		{Name: "id", Type: model.Text()},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true},
 		{Name: "status", Type: model.Text()},
+	},
+	Allow: model.Read,
+	Rules: model.Rules{
+		Read: model.AddMyBusinessRule,
 	},
 }
 
-var GetChargeArgsModel = model.Definition{
-	Name: "get_charge_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "reference_module", Type: model.Text(), NotNull: true},
-		{Name: "reference_id", Type: model.Text(), NotNull: true},
-	},
-}
 
 var ChargeResultModel = model.Definition{
 	Name: "charge_result",
 	Fields: model.Fields{
+		{Name: "tenant_id", Type: model.Text(), NotNull: true},
+		{Name: "reference_module", Type: model.Text(), NotNull: true},
+		{Name: "reference_id", Type: model.Text(), NotNull: true},
 		{Name: "amount", Type: model.Int()},
 		{Name: "currency", Type: model.Text()},
 		{Name: "payable", Type: model.Bool()},
 		{Name: "terminal", Type: model.Bool()},
 	},
+	Allow: model.Read,
+	Rules: model.Rules{
+		Read: model.AddMyBusinessRule,
+	},
 }
 
-var StartTerminalPaymentArgsModel = model.Definition{
-	Name: "start_terminal_payment_args",
+
+
+
+
+
+
+
+var OnlinePaymentRequestModel = model.Definition{
+	Name: "payment_online_request",
 	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "id", Type: model.Text(), NotNull: true},
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true, Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'.', '-', '_'}, Minimum: 1, Maximum: 26}},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
 		{Name: "reference_module", Type: model.Text(), NotNull: true},
 		{Name: "reference_id", Type: model.Text(), NotNull: true},
-		{Name: "method", Type: input.Radio(), NotNull: true}, // MethodDebit | MethodCredit
-		{Name: "created_by", Type: model.Text()},
+		{Name: "return_url", Type: input.Text()},
+		{Name: "payment_id", Type: model.Text(), ServerOnly: true},
+		{Name: "redirect_url", Type: model.Text(), ServerOnly: true},
+		{Name: "status", Type: model.Text(), ServerOnly: true},
+		{Name: "failure", Type: model.Text(), ServerOnly: true},
+		{Name: "created_at", Type: model.UnixTime(), ServerOnly: true},
+		{Name: "payer_name", Type: model.Text()},
+		{Name: "payer_email", Type: model.Text()},
+		{Name: "payer_phone", Type: model.Text()},
+		{Name: "token", Type: model.Text(), ServerOnly: true},
+		{Name: "token_field", Type: model.Text(), ServerOnly: true},
+	},
+	Allow: model.Create | model.Read,
+	Rules: model.Rules{
+		Create: model.AddMyBusinessRule,
+		Read: model.HaveNoBusinessRule,
+	},
+	ExternalCalls: []model.ExternalCallDefinition{
+		{Name: "GatewayStart", Mode: model.WaitForReply, MaxWaitSeconds: 15},
 	},
 }
 
-var ListPaymentsByReferenceArgsModel = model.Definition{
-	Name: "list_payments_by_reference_args",
+var PaymentReconciliationModel = model.Definition{
+	Name: "payment_reconciliation",
 	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "reference_module", Type: model.Text(), NotNull: true},
-		{Name: "reference_id", Type: model.Text(), NotNull: true},
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true, Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'.', '-', '_'}, Minimum: 1, Maximum: 26}},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
+		{Name: "status", Type: model.Text(), ServerOnly: true},
+		{Name: "failure", Type: model.Text(), ServerOnly: true},
+		{Name: "reconciled", Type: model.Int(), ServerOnly: true},
+		{Name: "actor_id", Type: model.Text(), ServerOnly: true},
+		{Name: "created_at", Type: model.UnixTime(), ServerOnly: true},
+	},
+	Allow: model.Create | model.Read,
+	Rules: model.Rules{
+		Create: model.AddMyBusinessRule,
+		Read: model.HaveNoBusinessRule,
+	},
+	ExternalCalls: []model.ExternalCallDefinition{
+		{Name: "Reconcile", Mode: model.RetryInBackground, MaxAttempts: 3},
 	},
 }
 
-var ListPaymentsArgsModel = model.Definition{
-	Name: "list_payments_args",
+var PaymentManualConfirmationModel = model.Definition{
+	Name: "payment_manual_confirmation",
 	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "from", Type: model.Int(), OmitEmpty: true},
-		{Name: "to", Type: model.Int(), OmitEmpty: true},
+		{Name: "id", Type: model.Text(), DB: &model.FieldDB{PK: true}, NotNull: true, Permitted: model.Permitted{Letters: true, Numbers: true, Extra: []rune{'.', '-', '_'}, Minimum: 1, Maximum: 26}},
+		{Name: "tenant_id", Type: model.Text(), NotNull: true, ServerOnly: true},
+		{Name: "payment_id", Type: model.Text(), NotNull: true},
+		{Name: "note", Type: input.Text(), NotNull: true},
+		{Name: "actor_id", Type: model.Text(), ServerOnly: true},
+		{Name: "created_at", Type: model.UnixTime(), ServerOnly: true},
+	},
+	Allow: model.Create | model.Read,
+	Rules: model.Rules{
+		Create: model.AddMyBusinessRule,
+		Read: model.HaveNoBusinessRule,
+	},
+	ExternalCalls: []model.ExternalCallDefinition{
+		{Name: "Confirm", Mode: model.WaitForReply, MaxWaitSeconds: 10},
 	},
 }
 
-var RefundPaymentArgsModel = model.Definition{
-	Name: "refund_payment_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "id", Type: model.Text(), NotNull: true},
-		{Name: "payment_id", Type: model.Text(), Ref: &PaymentModel, DB: &model.FieldDB{RefColumn: "id"}, NotNull: true},
-		{Name: "amount", Type: model.Int(), NotNull: true, },
-		{Name: "reason", Type: input.Textarea(), NotNull: true, Permitted: model.Permitted{Maximum: 255}},
-		{Name: "method", Type: model.Text()},
-		{Name: "created_by", Type: model.Text()},
-	},
-}
 
-var ListRefundsArgsModel = model.Definition{
-	Name: "list_refunds_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-		{Name: "payment_id", Type: model.Text(), Ref: &PaymentModel, DB: &model.FieldDB{RefColumn: "id"}, NotNull: true},
-	},
-}
-
-var ReconcilePaymentsArgsModel = model.Definition{
-	Name: "reconcile_payments_args",
-	Fields: model.Fields{
-		{Name: "tenant_id", Type: model.Text(), NotNull: true},
-	},
-}
-
-var ReconcileResultModel = model.Definition{
-	Name: "reconcile_result",
-	Fields: model.Fields{
-		{Name: "closed", Type: model.Int()},
+var Definition = model.ModuleDefinition{
+	Name: "payment_manager",
+	Entities: []model.Definition{
+		PaymentModel,
+		PaymentCounterModel,
+		PaymentManualConfirmationModel,
+		OnlinePaymentRequestModel,
+		RefundModel,
+		PaymentReconciliationModel,
+		ChargeResultModel,
+		PaymentStatusResultModel,
 	},
 }

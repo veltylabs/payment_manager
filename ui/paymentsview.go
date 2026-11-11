@@ -3,6 +3,7 @@ package ui
 import (
 	"webtyp.com/components/segmentedcontrol"
 	"webtyp.com/components/targetlist"
+	"webtyp.com/crud"
 	"webtyp.com/fmt"
 	"webtyp.com/lang"
 	"webtyp.com/model"
@@ -107,15 +108,15 @@ func (v *PaymentsView) reload() {
 }
 
 func (v *PaymentsView) reconcile() {
-	out := &paymentmanager.ReconcileResult{}
-	v.caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpReconcilePayments,
-		&paymentmanager.ReconcilePaymentsArgs{TenantId: v.tenantID}, out,
+	out := &paymentmanager.PaymentReconciliation{}
+	v.caller.Call(router.Operation{Module: paymentmanager.ModelName, Entity: (&paymentmanager.PaymentReconciliation{}).ModelName(), Action: model.Create},
+		&crud.CreateArgs{Records: []model.Model{&paymentmanager.PaymentReconciliation{Id: v.ids.NewID()}}}, out,
 		func(err error) {
 			if err != nil {
 				v.message.Set(err.Error())
 				return
 			}
-			v.message.Set(lang.Translate(textClosed).String() + " " + fmt.Convert(out.Closed).String())
+			v.message.Set(lang.Translate(textClosed).String() + " " + fmt.Convert(out.Reconciled).String())
 			v.reload()
 		})
 }
@@ -132,8 +133,8 @@ func (v *PaymentsView) show(id string) {
 	v.refundReason.Set("")
 	v.refundMethod = paymentmanager.MethodCash
 	refunds := &paymentmanager.RefundList{}
-	v.caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpListRefunds,
-		&paymentmanager.ListRefundsArgs{TenantId: v.tenantID, PaymentId: p.Id}, refunds,
+	v.caller.Call(router.Operation{Module: paymentmanager.ModelName, Entity: (&paymentmanager.Refund{}).ModelName(), Action: model.Read},
+		&crud.ReadArgs{Filter: &paymentmanager.Refund{PaymentId: p.Id}}, refunds,
 		func(err error) {
 			if err != nil {
 				v.message.Set(err.Error())
@@ -183,15 +184,15 @@ func (v *PaymentsView) refund() {
 		return
 	}
 	out := &paymentmanager.Refund{}
-	args := &paymentmanager.RefundPaymentArgs{
-		TenantId:  v.tenantID,
+	paymentID := v.selected.Id
+	args := &crud.CreateArgs{Records: []model.Model{&paymentmanager.Refund{
 		Id:        v.ids.NewID(),
-		PaymentId: v.selected.Id,
+		PaymentId: paymentID,
 		Amount:    amount,
 		Reason:    v.refundReason.Get(),
 		Method:    v.refundMethod,
-	}
-	v.caller.Call(paymentmanager.ModelName+"."+paymentmanager.OpRefundPayment, args, out, func(err error) {
+	}}}
+	v.caller.Call(router.Operation{Module: paymentmanager.ModelName, Entity: (&paymentmanager.Refund{}).ModelName(), Action: model.Create}, args, out, func(err error) {
 		if err != nil {
 			v.message.Set(err.Error())
 			return
@@ -203,7 +204,7 @@ func (v *PaymentsView) refund() {
 				return
 			}
 			v.list.SetItems(v.presenter.Items())
-			v.show(args.PaymentId)
+			v.show(paymentID)
 		})
 	})
 }
