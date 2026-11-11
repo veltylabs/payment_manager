@@ -2,6 +2,8 @@
 PLAN: "chore: payment_manager part 2b (reuse warnings, translations, Spanish docs)"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 10447623625114793059
 ---
 
 > Read AGENTS.md at the repo root before any change.
