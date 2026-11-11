@@ -2,6 +2,8 @@
 PLAN: "test: payment_manager rule tests, part 2a (queue double and five tests)"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 2054144436731494998
 ---
 
 > Read AGENTS.md at the repo root before any change.
