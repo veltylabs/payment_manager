@@ -9,7 +9,7 @@ require (
 	webtyp.com/ddl v0.0.49
 	webtyp.com/dom v0.13.29
 	webtyp.com/events v0.1.8
-	webtyp.com/fmt v1.0.1
+	webtyp.com/fmt v1.0.2
 	webtyp.com/html v0.0.30
 	webtyp.com/input v0.0.36
 	webtyp.com/lang v0.1.16
