@@ -3,7 +3,7 @@ module github.com/veltylabs/payment_manager
 go 1.26.8
 
 require (
-	webtyp.com/components v0.8.73
+	webtyp.com/components v0.8.75
 	webtyp.com/crud v0.0.14
 	webtyp.com/css v0.4.31
 	webtyp.com/ddl v0.0.49
@@ -33,7 +33,7 @@ require (
 	webtyp.com/escape v0.1.0 // indirect
 	webtyp.com/filetype v0.1.1 // indirect
 	webtyp.com/font v0.0.5 // indirect
-	webtyp.com/icons v0.0.39 // indirect
+	webtyp.com/icons v0.0.42 // indirect
 	webtyp.com/json v0.5.40 // indirect
 	webtyp.com/msgtype v0.1.0 // indirect
 )
