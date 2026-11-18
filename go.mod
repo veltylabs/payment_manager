@@ -6,18 +6,18 @@ require (
 	webtyp.com/components v0.8.75
 	webtyp.com/crud v0.0.14
 	webtyp.com/css v0.4.31
-	webtyp.com/ddl v0.0.49
+	webtyp.com/ddl v0.0.59
 	webtyp.com/dom v0.13.29
 	webtyp.com/events v0.1.8
-	webtyp.com/fmt v1.0.2
+	webtyp.com/fmt v1.0.3
 	webtyp.com/html v0.0.30
 	webtyp.com/input v0.2.4
 	webtyp.com/lang v0.1.16
-	webtyp.com/model v0.2.23
+	webtyp.com/model v0.2.24
 	webtyp.com/money v0.2.0
 	webtyp.com/orm v0.12.33
 	webtyp.com/router v0.4.22
-	webtyp.com/storage v0.2.2
+	webtyp.com/storage v0.2.8
 	webtyp.com/svg v0.3.30
 	webtyp.com/time v0.6.5
 	webtyp.com/unixid v0.3.2
