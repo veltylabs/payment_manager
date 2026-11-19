@@ -72,12 +72,3 @@ func (m *Module) payoutTerms(channel string) (PayoutTerms, bool) {
 	return t, ok
 }
 
-// refundFact arma el hecho de una devolución, con el medio del pago devuelto.
-func refundFact(p Payment, r Refund) (money.Fact, error) {
-	amt, err := money.New(r.Amount, money.Currency(p.Currency))
-	if err != nil {
-		return money.Fact{}, err
-	}
-	return money.Fact{Kind: money.Refunded, Side: money.Outflow, Amount: amt, Scope: p.ReferenceModule,
-		Source: money.Ref{Type: SourceRefund, ID: r.Id}, Party: p.ReferenceId, At: r.CreatedAt, Means: meansOf(p.Method), Actor: r.CreatedBy}, nil
-}

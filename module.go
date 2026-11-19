@@ -41,7 +41,6 @@ type Module struct {
 	repo      *repository
 	pub       events.Publisher
 	gw        Gateway
-	retURL    string
 	charges   []ChargeSource
 	term      Terminal
 	receiptMu sync.Mutex
@@ -92,10 +91,6 @@ func (m *Module) publish(topic string, payload model.Model) {
 	if m.pub != nil {
 		m.pub.Publish(events.Event{Topic: topic, Payload: payload})
 	}
-}
-
-func isCounterMethod(method string) bool {
-	return method == MethodCash || method == MethodDebit || method == MethodCredit || method == MethodTransfer
 }
 
 func (m *Module) source(referenceModule string) (ChargeSource, bool) {
@@ -379,20 +374,8 @@ func (m *Module) ListPayments(tenantId string, from, to time.Unix) ([]Payment, e
 	return m.repo.paymentsByDateRange(tenantId, int64(from), int64(to))
 }
 
-// listPaymentsPaged lista pagos paginados, buscando opcionalmente por monto (búsqueda estricta).
-func (m *Module) listPaymentsPaged(tenantId, search, after string, limit int64) ([]Payment, error) {
-	return m.repo.paymentsPaged(tenantId, search, after, limit)
-}
-
 // ListRefunds lista las devoluciones de un pago.
 func (m *Module) ListRefunds(tenantId, paymentId string) ([]Refund, error) {
 	return m.repo.refundsByPayment(tenantId, paymentId)
 }
 
-// create valida y guarda un pago nuevo.
-func (m *Module) create(p *Payment) error {
-	if err := p.Validate(byte(model.ActionCreate)); err != nil {
-		return err
-	}
-	return m.db.Create(p)
-}

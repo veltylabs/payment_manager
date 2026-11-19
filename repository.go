@@ -1,7 +1,6 @@
 package paymentmanager
 
 import (
-	"strconv"
 	"webtyp.com/model"
 	"webtyp.com/orm"
 )
@@ -37,13 +36,6 @@ func (r *repository) paymentByProviderToken(tenantId, token string) (Payment, er
 	return readOnePayment(r.db.Query(p).Where(Payment_.TenantId).Eq(tenantId).Where(Payment_.ProviderToken).Eq(token), p)
 }
 
-// paymentAnyTenant busca un id sin filtrar por tenant: los ids los genera
-// quien llama, así que reusarlos entre tenants debe responder ErrIdTaken.
-func (r *repository) paymentAnyTenant(id string) (Payment, error) {
-	p := &Payment{}
-	return readOnePayment(r.db.Query(p).Where(Payment_.Id).Eq(id), p)
-}
-
 func (r *repository) paymentsByReference(tenantId, refModule, refId string) ([]Payment, error) {
 	return readAllPayments(r.db.Query(&Payment{}).
 		Where(Payment_.TenantId).Eq(tenantId).
@@ -56,22 +48,6 @@ func (r *repository) paymentsByDateRange(tenantId string, from, to int64) ([]Pay
 		Where(Payment_.TenantId).Eq(tenantId).
 		Where(Payment_.CreatedAt).Gte(from).
 		Where(Payment_.CreatedAt).Lt(to))
-}
-
-func (r *repository) paymentsPaged(tenantId, search, after string, limit int64) ([]Payment, error) {
-	qb := r.db.Query(&Payment{}).Where(Payment_.TenantId).Eq(tenantId)
-	if search != "" {
-		intVal, err := strconv.ParseInt(search, 10, 64)
-		if err != nil {
-			return []Payment{}, nil
-		}
-		qb = qb.Where(Payment_.Amount).Eq(intVal)
-	}
-	if after != "" {
-		qb = qb.Where(Payment_.Id).Gt(after)
-	}
-	qb = qb.OrderBy(Payment_.Id).Asc().Limit(int(limit))
-	return readAllPayments(qb)
 }
 
 func (r *repository) oldPendingPayments(tenantId string, channel string, before int64) ([]Payment, error) {
@@ -92,18 +68,6 @@ func readAllPayments(qb *orm.QB) ([]Payment, error) {
 		out[i] = *row
 	}
 	return out, nil
-}
-
-func (r *repository) refundAnyTenant(id string) (Refund, error) {
-	ref := &Refund{}
-	got, err := ReadOneRefund(r.db.Query(ref).Where(Refund_.Id).Eq(id), ref)
-	if orm.IsNotFound(err) {
-		return Refund{}, ErrRefundNotFound
-	}
-	if err != nil {
-		return Refund{}, err
-	}
-	return *got, nil
 }
 
 func (r *repository) refundsByPayment(tenantId, paymentId string) ([]Refund, error) {

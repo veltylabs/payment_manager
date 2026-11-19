@@ -35,7 +35,6 @@ var (
 	clsStepBody    = NamePaymentStep.Class(PartBody)
 	clsStepPay     = NamePaymentStep.Class(PartPay)
 	clsStepActions = NamePaymentStep.Class(PartActions)
-	clsStepInput   = NamePaymentStep.Class(PartInput)
 )
 
 // Textos fijos (claves en inglés; su español en lang.json).
